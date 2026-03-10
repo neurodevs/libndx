@@ -8,3 +8,8 @@ struct BleBackendFixture {
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
   REQUIRE(true);
 }
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") {
+  backend.start([](const ndx::Packet&) {});
+  REQUIRE(backend.is_running());
+}
