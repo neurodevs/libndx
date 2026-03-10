@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ── Sources ────────────────────────────────────────────────────────────────────
 
 set(NDX_SOURCES
+  src/acquisition_backend.cpp
   src/ble/ble_backend.cpp
+  src/ftdi/ftdi_backend.cpp
 )
 
 # ── Library target ─────────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ enable_testing()
 
 add_executable(ndx_tests
   tests/test_ble_backend.cpp
+  tests/test_ftdi_backend.cpp
 )
 
 target_link_libraries(ndx_tests PRIVATE ndx Catch2::Catch2WithMain)

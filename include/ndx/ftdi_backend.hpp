@@ -4,9 +4,9 @@
 
 namespace ndx {
 
-class BleBackend : public AcquisitionBackend {
+class FtdiBackend : public AcquisitionBackend {
 public:
-  explicit BleBackend(const std::string& device_id);
+  explicit FtdiBackend(const std::string& device_id);
   void start(PacketCallback cb) override;
   void stop() override;
 };

@@ -2,8 +2,8 @@
 
 namespace ndx {
 
-BleBackend::BleBackend(const std::string& address)
-  : address_(address), is_running_(false) {}
+BleBackend::BleBackend(const std::string& device_id)
+  : AcquisitionBackend(device_id) {}
 
   void BleBackend::start(std::function<void(const Packet&)> callback) {
     is_running_ = true;
@@ -11,10 +11,6 @@ BleBackend::BleBackend(const std::string& address)
 
   void BleBackend::stop() {
     is_running_ = false;
-  }
-
-  bool BleBackend::is_running() const {
-    return is_running_;
   }
 
 }
