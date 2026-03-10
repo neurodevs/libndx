@@ -36,6 +36,8 @@ if(APPLE)
     "-framework CoreBluetooth"
     "-framework Foundation"
   )
+else()
+  message(FATAL_ERROR "libndx: unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
