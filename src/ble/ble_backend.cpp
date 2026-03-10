@@ -9,6 +9,10 @@ BleBackend::BleBackend(const std::string& address)
     is_running_ = true;
   }
 
+  void BleBackend::stop() {
+    is_running_ = false;
+  }
+
   bool BleBackend::is_running() const {
     return is_running_;
   }

@@ -8,7 +8,7 @@ class BleBackend : public AcquisitionBackend {
 public:
   explicit BleBackend(const std::string& address);
   void start(PacketCallback cb) override;
-  void stop() override {}
+  void stop() override;
   bool is_running() const override;
 
 private:

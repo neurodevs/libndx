@@ -13,3 +13,9 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") 
   backend.start([](const ndx::Packet&) {});
   REQUIRE(backend.is_running());
 }
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
+  backend.start([](const ndx::Packet&) {});
+  backend.stop();
+  REQUIRE_FALSE(backend.is_running());
+}
