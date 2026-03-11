@@ -3,6 +3,14 @@
 
 struct BleBackendFixture {
   ndx::BleBackend backend{ "A1:B2:C3:D4:E5:F6" };
+
+  void start() {
+    backend.start([](const ndx::Packet&) {});
+  }
+
+  void stop() {
+    backend.stop();
+  }
 };
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
@@ -10,16 +18,21 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") {
-  backend.start([](const ndx::Packet&) {});
+  start();
   REQUIRE(backend.is_running());
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
-  backend.start([](const ndx::Packet&) {});
-  backend.stop();
+  start();
+  stop();
   REQUIRE_FALSE(backend.is_running());
 }
 
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws if already running") {
+  start();
+  REQUIRE_THROWS_WITH(start(), "BleBackend: start called while already running");
+}
+
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
-  REQUIRE_THROWS_WITH(backend.stop(), "BleBackend: stop called while not running");
+  REQUIRE_THROWS_WITH(stop(), "BleBackend: stop called while not running");
 }

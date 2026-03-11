@@ -3,6 +3,14 @@
 
 struct FtdiBackendFixture {
   ndx::FtdiBackend backend{ "A1:B2:C3:D4:E5:F6" };
+
+  void start() {
+    backend.start([](const ndx::Packet&) {});
+  }
+
+  void stop() {
+    backend.stop();
+  }
 };
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend can be instantiated") {
@@ -10,16 +18,21 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend can be instantiated") {
 }
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true") {
-  backend.start([](const ndx::Packet&) {});
+  start();
   REQUIRE(backend.is_running());
 }
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend stop sets is_running to false") {
-  backend.start([](const ndx::Packet&) {});
-  backend.stop();
+  start();
+  stop();
   REQUIRE_FALSE(backend.is_running());
 }
 
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start throws if already running") {
+  start();
+  REQUIRE_THROWS_WITH(start(), "FtdiBackend: start called while already running");
+}
+
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend stop throws if not running") {
-  REQUIRE_THROWS_WITH(backend.stop(), "FtdiBackend: stop called while not running");
+  REQUIRE_THROWS_WITH(stop(), "FtdiBackend: stop called while not running");
 }

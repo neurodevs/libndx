@@ -12,7 +12,7 @@ class AcquisitionBackend {
 public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
-  virtual void start(PacketCallback cb) = 0;
+  virtual void start(PacketCallback cb);
   virtual void stop();
   virtual bool is_running() const { return is_running_; }
 
