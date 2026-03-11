@@ -8,7 +8,7 @@ class FtdiBackend : public AcquisitionBackend {
 public:
   explicit FtdiBackend(const std::string& device_id);
   void start(PacketCallback cb) override;
-  void stop() override;
+  std::string name() const override { return "FtdiBackend"; }
 };
 
 }

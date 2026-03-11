@@ -13,12 +13,13 @@ public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
   virtual void start(PacketCallback cb) = 0;
-  virtual void stop() = 0;
+  virtual void stop();
   virtual bool is_running() const { return is_running_; }
 
 protected:
   std::string device_id_;
   bool is_running_ = false;
+  virtual std::string name() const = 0;
 };
 
 }

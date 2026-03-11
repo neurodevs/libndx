@@ -5,12 +5,8 @@ namespace ndx {
 FtdiBackend::FtdiBackend(const std::string& device_id)
   : AcquisitionBackend(device_id) {}
 
-  void FtdiBackend::start(std::function<void(const Packet&)> callback) {
-    is_running_ = true;
-  }
-
-  void FtdiBackend::stop() {
-    is_running_ = false;
-  }
+void FtdiBackend::start(std::function<void(const Packet&)> callback) {
+  is_running_ = true;
+}
 
 }

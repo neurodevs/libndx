@@ -8,7 +8,7 @@ class BleBackend : public AcquisitionBackend {
 public:
   explicit BleBackend(const std::string& device_id);
   void start(PacketCallback cb) override;
-  void stop() override;
+  std::string name() const override { return "BleBackend"; }
 };
 
 }

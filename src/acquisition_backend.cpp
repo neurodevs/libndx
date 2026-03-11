@@ -5,4 +5,11 @@ namespace ndx {
 AcquisitionBackend::AcquisitionBackend(const std::string& device_id)
   : device_id_(device_id) {}
 
+void AcquisitionBackend::stop() {
+  if (!is_running_) {
+    throw std::runtime_error(name() + ": stop called while not running");
+  }
+  is_running_ = false;
+}
+
 }

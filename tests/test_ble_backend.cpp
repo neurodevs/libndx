@@ -1,4 +1,4 @@
-#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_all.hpp>
 #include "ndx/ble_backend.hpp"
 
 struct BleBackendFixture {
@@ -18,4 +18,8 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") 
   backend.start([](const ndx::Packet&) {});
   backend.stop();
   REQUIRE_FALSE(backend.is_running());
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
+  REQUIRE_THROWS_WITH(backend.stop(), "BleBackend: stop called while not running");
 }
