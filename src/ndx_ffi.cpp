@@ -12,15 +12,19 @@ static bool is_valid_mac(const std::string& address) {
     return address.size() == 17 && num_colons == 5;
 }
 
+static char* to_ffi_result(const nlohmann::json& j) {
+    return strdup(j.dump().c_str());
+}
+
 extern "C" char* createBleBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
     std::string address = j["mac_address"].get<std::string>();
+
     if (!is_valid_mac(address)) {
-        return strdup("{\"status\": 400, \"error\": \"invalid MAC address\" }");
+        return to_ffi_result({{"status", 400}, {"error", "invalid MAC address"}});
     }
 
     int id = g_next_ble_id++;
-    nlohmann::json result = {{"status", 200}, {"id", id}};
-    return strdup(result.dump().c_str());
+    return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
