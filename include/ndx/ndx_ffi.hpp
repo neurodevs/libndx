@@ -2,6 +2,7 @@
 
 #include <memory>
 #include "ndx/ble_backend.hpp"
+#include "ndx/ftdi_backend.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +25,7 @@ void ndx_free_string(char* ptr);
 
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id);
+std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id);
 #endif
 
 #endif

@@ -2,7 +2,7 @@
 #include "ndx/ftdi_backend.hpp"
 
 struct FtdiBackendFixture {
-  ndx::FtdiBackend backend{ "A1:B2:C3:D4:E5:F6" };
+  ndx::FtdiBackend backend{ "ABCD1234" };
 
   void start() {
     backend.start([](const ndx::Packet&) {});

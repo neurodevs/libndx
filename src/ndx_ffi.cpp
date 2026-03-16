@@ -5,9 +5,12 @@
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
 #include "ndx/ble_backend.hpp"
+#include "ndx/ftdi_backend.hpp"
 
 static std::unordered_map<int, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
+static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
 static int g_next_ble_id = 1;
+static int g_next_ftdi_id = 1;
 
 static bool is_valid_mac(const std::string& address) {
     const int num_colons = std::count(address.begin(), address.end(), ':');
@@ -31,8 +34,27 @@ extern "C" char* createBleBackend(const char* config_json) {
     return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
+extern "C" char* createFtdiBackend(const char* config_json) {
+    auto j = nlohmann::json::parse(config_json, nullptr, false);
+    std::string serial_number = j["serial_number"].get<std::string>();
+
+    if (serial_number.size() != 8) {
+        return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
+    }
+
+    int id = g_next_ftdi_id++;
+    g_ftdi_backends[id] = std::make_shared<ndx::FtdiBackend>(serial_number);
+    return to_ffi_result({{"status", 200}, {"id", id}});
+}
+
 // For tests only
+
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
     auto it = g_ble_backends.find(id);
     return (it != g_ble_backends.end()) ? it->second : nullptr;
+}
+
+std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
+    auto it = g_ftdi_backends.find(id);
+    return (it != g_ftdi_backends.end()) ? it->second : nullptr;
 }

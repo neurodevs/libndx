@@ -9,30 +9,30 @@ struct BleBackendFixture {
   }
 };
 
-struct ValidInstanceFixture : BleBackendFixture {
+struct ValidBleFixture : BleBackendFixture {
   nlohmann::json json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
 };
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns id") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns id") {
     REQUIRE(json.contains("id"));
 }
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend autoincrements id") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend autoincrements id") {
     auto json2 = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
     REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
 }
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend constructs BleBackend instance") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend constructs BleBackend instance") {
     int id = json["id"].get<int>();
     auto backend = getBleBackend(id);
     REQUIRE(backend != nullptr);
 }
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend sets proper mac_address") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper mac_address") {
     int id = json["id"].get<int>();
     auto backend = getBleBackend(id);
     REQUIRE(backend->device_id() == "AA:BB:CC:DD:EE:FF");
