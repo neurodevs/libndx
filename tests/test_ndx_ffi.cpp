@@ -17,6 +17,10 @@ TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns an id") {
+    REQUIRE(json.contains("id"));
+}
+
 TEST_CASE_METHOD(BleBackendFixture, "createBleBackend returns error if address is not size 17") {
     auto json = createAndParse("{\"mac_address\":\"not-mac-address\"}");
     REQUIRE(json["status"] == 400);

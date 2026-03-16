@@ -16,6 +16,9 @@ extern "C" char* createBleBackend(const char* config_json) {
     if (!is_valid_mac(address)) {
         return strdup("{\"status\": 400, \"error\": \"invalid MAC address\" }");
     }
-    return strdup("{\"status\": 200 }");
+
+    int id = 1;
+    nlohmann::json result = {{"status", 200}, {"id", id}};
+    return strdup(result.dump().c_str());
 }
 
