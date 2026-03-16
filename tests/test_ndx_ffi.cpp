@@ -3,7 +3,7 @@
 #include "ndx/ndx_ffi.hpp"
 
 TEST_CASE("createBleBackend returns ok") {
-    const char* config_json = "{\"address\":\"AA:BB:CC:DD:EE:FF\"}";
+    const char* config_json = "{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}";
     const char* result = createBleBackend(config_json);
 
     auto json = nlohmann::json::parse(result);
@@ -11,7 +11,7 @@ TEST_CASE("createBleBackend returns ok") {
 }
 
 TEST_CASE("createBleBackend returns error if address is not size 17") {
-    const char* config_json = "{\"address\":\"not-mac-address\"}";
+    const char* config_json = "{\"mac_address\":\"not-mac-address\"}";
     const char* result = createBleBackend(config_json);
 
     auto json = nlohmann::json::parse(result);
@@ -20,7 +20,7 @@ TEST_CASE("createBleBackend returns error if address is not size 17") {
 }
 
 TEST_CASE("createBleBackend returns error if address does not contain 5 colons") {
-    const char* config_json = "{\"address\":\"AA:BB:CC:DD:EE;FF\"}";
+    const char* config_json = "{\"mac_address\":\"AA:BB:CC:DD:EE;FF\"}";
     const char* result = createBleBackend(config_json);
 
     auto json = nlohmann::json::parse(result);

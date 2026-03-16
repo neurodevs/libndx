@@ -12,7 +12,7 @@ static bool is_valid_mac(const std::string& address) {
 
 extern "C" char* createBleBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
-    std::string address = j["address"].get<std::string>();
+    std::string address = j["mac_address"].get<std::string>();
     if (!is_valid_mac(address)) {
         return strdup("{\"status\": 400, \"error\": \"invalid MAC address\" }");
     }
