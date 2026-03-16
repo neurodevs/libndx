@@ -29,8 +29,13 @@ TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend autoincrements id") {
 TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend constructs BleBackend instance") {
     int id = json["id"].get<int>();
     auto backend = getBleBackend(id);
-
     REQUIRE(backend != nullptr);
+}
+
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend sets proper mac_address") {
+    int id = json["id"].get<int>();
+    auto backend = getBleBackend(id);
+    REQUIRE(backend->device_id() == "AA:BB:CC:DD:EE:FF");
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "createBleBackend returns error if address is not size 17") {

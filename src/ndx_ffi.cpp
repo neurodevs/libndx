@@ -27,7 +27,7 @@ extern "C" char* createBleBackend(const char* config_json) {
     }
 
     int id = g_next_ble_id++;
-    g_ble_backends[id] = std::make_shared<ndx::BleBackend>("");
+    g_ble_backends[id] = std::make_shared<ndx::BleBackend>(address);
     return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
