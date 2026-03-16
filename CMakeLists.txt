@@ -4,15 +4,14 @@ project(ndx VERSION 0.1.0 LANGUAGES CXX OBJCXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ── Sources ────────────────────────────────────────────────────────────────────
+find_package(nlohmann_json REQUIRED)
 
 set(NDX_SOURCES
+  src/ndx_ffi.cpp
   src/acquisition_backend.cpp
   src/ble/ble_backend.cpp
   src/ftdi/ftdi_backend.cpp
 )
-
-# ── Library target ─────────────────────────────────────────────────────────────
 
 add_library(ndx STATIC ${NDX_SOURCES})
 
@@ -21,17 +20,16 @@ target_include_directories(ndx PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# ── liblsl ─────────────────────────────────────────────────────────────────────
-
 add_library(lsl SHARED IMPORTED)
 set_target_properties(lsl PROPERTIES
   IMPORTED_LOCATION "/opt/local/lib/liblsl.dylib"
   INTERFACE_INCLUDE_DIRECTORIES "/opt/local/include"
 )
 
-target_link_libraries(ndx PUBLIC lsl)
-
-# ── Platform frameworks ────────────────────────────────────────────────────────
+target_link_libraries(ndx PUBLIC
+  lsl
+  nlohmann_json::nlohmann_json
+)
 
 if(APPLE)
   target_link_libraries(ndx PUBLIC
@@ -41,8 +39,6 @@ if(APPLE)
 else()
   message(FATAL_ERROR "libndx: unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
-
-# ── Tests ──────────────────────────────────────────────────────────────────────
 
 include(FetchContent)
 FetchContent_Declare(
@@ -55,11 +51,16 @@ FetchContent_MakeAvailable(Catch2)
 enable_testing()
 
 add_executable(ndx_tests
+  tests/test_ndx_ffi.cpp
   tests/test_ble_backend.cpp
   tests/test_ftdi_backend.cpp
 )
 
-target_link_libraries(ndx_tests PRIVATE ndx Catch2::Catch2WithMain)
+target_link_libraries(ndx_tests PRIVATE
+  ndx
+  Catch2::Catch2WithMain
+  nlohmann_json::nlohmann_json
+)
 
 include(CTest)
 include(Catch)
