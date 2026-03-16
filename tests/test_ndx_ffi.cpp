@@ -17,6 +17,11 @@ TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend autoincrements id") {
+    auto json2 = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+    REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
+}
+
 TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns an id") {
     REQUIRE(json.contains("id"));
 }

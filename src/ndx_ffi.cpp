@@ -5,6 +5,8 @@
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
 
+static int g_next_ble_id = 1;
+
 static bool is_valid_mac(const std::string& address) {
     const int num_colons = std::count(address.begin(), address.end(), ':');
     return address.size() == 17 && num_colons == 5;
@@ -17,7 +19,7 @@ extern "C" char* createBleBackend(const char* config_json) {
         return strdup("{\"status\": 400, \"error\": \"invalid MAC address\" }");
     }
 
-    int id = 1;
+    int id = g_next_ble_id++;
     nlohmann::json result = {{"status", 200}, {"id", id}};
     return strdup(result.dump().c_str());
 }
