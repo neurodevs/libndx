@@ -2,28 +2,29 @@
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
 
-TEST_CASE("createBleBackend returns ok") {
-    const char* config_json = "{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}";
+struct BleBackendFixture {
+  nlohmann::json createAndParse(const char* config_json) {
     const char* result = createBleBackend(config_json);
+    return nlohmann::json::parse(result);
+  }
+};
 
-    auto json = nlohmann::json::parse(result);
+struct ValidInstanceFixture : BleBackendFixture {
+  nlohmann::json json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+};
+
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE("createBleBackend returns error if address is not size 17") {
-    const char* config_json = "{\"mac_address\":\"not-mac-address\"}";
-    const char* result = createBleBackend(config_json);
-
-    auto json = nlohmann::json::parse(result);
+TEST_CASE_METHOD(BleBackendFixture, "createBleBackend returns error if address is not size 17") {
+    auto json = createAndParse("{\"mac_address\":\"not-mac-address\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
 
-TEST_CASE("createBleBackend returns error if address does not contain 5 colons") {
-    const char* config_json = "{\"mac_address\":\"AA:BB:CC:DD:EE;FF\"}";
-    const char* result = createBleBackend(config_json);
-
-    auto json = nlohmann::json::parse(result);
+TEST_CASE_METHOD(BleBackendFixture, "createBleBackend returns error if address does not contain 5 colons") {
+    auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE;FF\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
