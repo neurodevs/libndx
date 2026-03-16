@@ -17,13 +17,20 @@ TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns id") {
+    REQUIRE(json.contains("id"));
+}
+
 TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend autoincrements id") {
     auto json2 = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
     REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
 }
 
-TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend returns an id") {
-    REQUIRE(json.contains("id"));
+TEST_CASE_METHOD(ValidInstanceFixture, "createBleBackend constructs BleBackend instance") {
+    int id = json["id"].get<int>();
+    auto backend = getBleBackend(id);
+
+    REQUIRE(backend != nullptr);
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "createBleBackend returns error if address is not size 17") {

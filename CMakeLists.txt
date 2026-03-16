@@ -56,6 +56,8 @@ add_executable(ndx_tests
   tests/test_ftdi_backend.cpp
 )
 
+target_compile_definitions(ndx_tests PRIVATE NDX_TESTING)
+
 target_link_libraries(ndx_tests PRIVATE
   ndx
   Catch2::Catch2WithMain

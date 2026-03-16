@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+#include "ndx/ble_backend.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,4 +21,9 @@ void ndx_free_string(char* ptr);
 
 #ifdef __cplusplus
 }
+
+#ifdef NDX_TESTING
+std::shared_ptr<ndx::BleBackend> getBleBackend(int id);
+#endif
+
 #endif
