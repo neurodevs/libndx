@@ -18,3 +18,12 @@ TEST_CASE("createBleBackend returns error if address is not size 17") {
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
+
+TEST_CASE("createBleBackend returns error if address does not contain 5 colons") {
+    const char* config_json = "{\"address\":\"AA:BB:CC:DD:EE;FF\"}";
+    const char* result = createBleBackend(config_json);
+
+    auto json = nlohmann::json::parse(result);
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "invalid MAC address");
+}
