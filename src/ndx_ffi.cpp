@@ -17,6 +17,15 @@ static bool is_valid_mac(const std::string& address) {
     return address.size() == 17 && num_colons == 5;
 }
 
+static bool is_ble_registered(const std::string& address) {
+    for (const auto& [id, backend] : g_ble_backends) {
+        if (backend->device_id() == address) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static char* to_ffi_result(const nlohmann::json& j) {
     return strdup(j.dump().c_str());
 }
@@ -27,6 +36,10 @@ extern "C" char* createBleBackend(const char* config_json) {
 
     if (!is_valid_mac(address)) {
         return to_ffi_result({{"status", 400}, {"error", "invalid MAC address"}});
+    }
+
+    if (is_ble_registered(address)) {
+        return to_ffi_result({{"status", 400}, {"error", "MAC address already registered"}});
     }
 
     int id = g_next_ble_id++;
@@ -57,4 +70,9 @@ std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
 std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
     auto it = g_ftdi_backends.find(id);
     return (it != g_ftdi_backends.end()) ? it->second : nullptr;
+}
+
+void resetBleBackends() {
+    g_ble_backends.clear();
+    g_next_ble_id = 1;
 }

@@ -26,6 +26,7 @@ void ndx_free_string(char* ptr);
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id);
 std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id);
+void resetBleBackends();
 #endif
 
 #endif
