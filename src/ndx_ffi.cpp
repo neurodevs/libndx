@@ -26,6 +26,15 @@ static bool is_ble_registered(const std::string& address) {
     return false;
 }
 
+static bool is_ftdi_registered(const std::string& serial_number) {
+    for (const auto& [id, backend] : g_ftdi_backends) {
+        if (backend->device_id() == serial_number) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static char* to_ffi_result(const nlohmann::json& j) {
     return strdup(j.dump().c_str());
 }
@@ -55,6 +64,10 @@ extern "C" char* createFtdiBackend(const char* config_json) {
         return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
     }
 
+    if (is_ftdi_registered(serial_number)) {
+        return to_ffi_result({{"status", 400}, {"error", "Serial number already registered"}});
+    }
+
     int id = g_next_ftdi_id++;
     g_ftdi_backends[id] = std::make_shared<ndx::FtdiBackend>(serial_number);
     return to_ffi_result({{"status", 200}, {"id", id}});
@@ -75,4 +88,9 @@ std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
 void resetBleBackends() {
     g_ble_backends.clear();
     g_next_ble_id = 1;
+}
+
+void resetFtdiBackends() {
+    g_ftdi_backends.clear();
+    g_next_ftdi_id = 1;
 }
