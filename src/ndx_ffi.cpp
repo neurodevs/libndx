@@ -4,9 +4,9 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
-#include "ndx/ndx_ffi_impl.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
+#include "ndx/ndx_ffi_impl.hpp"
 
 static std::unordered_map<int, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
 static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
@@ -32,7 +32,6 @@ static bool is_ble_registered(const std::string& address) {
     }
     return false;
 }
-
 
 static bool is_ftdi_registered(const std::string& serial_number) {
     for (const auto& [id, backend] : g_ftdi_backends) {
