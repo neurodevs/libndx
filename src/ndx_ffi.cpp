@@ -36,6 +36,10 @@ static bool is_ble_registered(const std::string& address) {
     return false;
 }
 
+static bool is_valid_serial(const std::string& serial_number) {
+    return serial_number.size() == 8;
+}
+
 static bool is_ftdi_registered(const std::string& serial_number) {
     for (const auto& [id, backend] : g_ftdi_backends) {
         if (backend->device_id() == serial_number) {
@@ -47,6 +51,22 @@ static bool is_ftdi_registered(const std::string& serial_number) {
 
 static char* to_ffi_result(const nlohmann::json& j) {
     return strdup(j.dump().c_str());
+}
+
+template<typename GetFn>
+static char* startBackend(const char* id_str, GetFn getBackend) {
+    int id = std::stoi(id_str);
+    auto backend = getBackend(id);
+    if (backend) backend->start([](const ndx::Packet&) {});
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
+}
+
+template<typename GetFn>
+static char* stopBackend(const char* id_str, GetFn getBackend) {
+    int id = std::stoi(id_str);
+    auto backend = getBackend(id);
+    if (backend) backend->stop();
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
 extern "C" char* createBleBackend(const char* config_json) {
@@ -67,30 +87,18 @@ extern "C" char* createBleBackend(const char* config_json) {
 }
 
 extern "C" char* startBleBackend(const char* id_str) {
-    int id = std::stoi(id_str);
-    auto backend = getBleBackend(id);
-
-    if (backend) {
-        backend->start([](const ndx::Packet&) {});
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
+    return startBackend(id_str, getBleBackend); 
 }
 
-extern "C" char* stopBleBackend(const char* id_str) {
-    int id = std::stoi(id_str);
-    auto backend = getBleBackend(id);
-
-    if (backend) {
-        backend->stop();
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
+extern "C" char* stopBleBackend(const char* id_str)  {
+    return stopBackend(id_str, getBleBackend); 
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
     std::string serial_number = j["serial_number"].get<std::string>();
 
-    if (serial_number.size() != 8) {
+    if (!is_valid_serial(serial_number)) {
         return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
     }
 
@@ -104,25 +112,12 @@ extern "C" char* createFtdiBackend(const char* config_json) {
 }
 
 extern "C" char* startFtdiBackend(const char* id_str) {
-    int id = std::stoi(id_str);
-    auto backend = getFtdiBackend(id);
-
-    if (backend) {
-        backend->start([](const ndx::Packet&) {});
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
+    return startBackend(id_str, getFtdiBackend); 
 }
 
 extern "C" char* stopFtdiBackend(const char* id_str) {
-    int id = std::stoi(id_str);
-    auto backend = getFtdiBackend(id);
-
-    if (backend) {
-        backend->stop();
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
+    return stopBackend(id_str, getFtdiBackend); 
 }
-
 
 // For tests only
 
