@@ -69,6 +69,17 @@ static char* stopBackend(const char* id_str, GetFn getBackend) {
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
+template<typename Map>
+static char* destroyBackend(const char* id_str, Map& backends) {
+    int id = std::stoi(id_str);
+    auto it = backends.find(id);
+    if (it != backends.end()) {
+        if (it->second->is_running()) it->second->stop();
+        backends.erase(it);
+    }
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
+}
+
 extern "C" char* createBleBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
     std::string address = j["mac_address"].get<std::string>();
@@ -92,6 +103,15 @@ extern "C" char* startBleBackend(const char* id_str) {
 
 extern "C" char* stopBleBackend(const char* id_str)  {
     return stopBackend(id_str, getBleBackend); 
+}
+
+extern "C" char* destroyBleBackend(const char* id_str) {
+    int id = std::stoi(id_str);
+    auto backend = g_ble_backends.find(id);
+    if (backend != g_ble_backends.end() && backend->second->is_running()) {
+        backend->second->stop();
+    }
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {
