@@ -69,13 +69,12 @@ static char* stopBackend(const char* id_str, GetFn getBackend) {
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
-template<typename Map>
-static char* destroyBackend(const char* id_str, Map& backends) {
+template<typename GetFn>
+static char* destroyBackend(const char* id_str, GetFn getBackend) {
     int id = std::stoi(id_str);
-    auto it = backends.find(id);
-    if (it != backends.end()) {
-        if (it->second->is_running()) it->second->stop();
-        backends.erase(it);
+    auto backend = getBackend(id);
+    if (backend && backend->is_running()) {
+        backend->stop();
     }
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
@@ -106,12 +105,7 @@ extern "C" char* stopBleBackend(const char* id_str)  {
 }
 
 extern "C" char* destroyBleBackend(const char* id_str) {
-    int id = std::stoi(id_str);
-    auto backend = g_ble_backends.find(id);
-    if (backend != g_ble_backends.end() && backend->second->is_running()) {
-        backend->second->stop();
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
+    return destroyBackend(id_str, getBleBackend);
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {
@@ -137,6 +131,10 @@ extern "C" char* startFtdiBackend(const char* id_str) {
 
 extern "C" char* stopFtdiBackend(const char* id_str) {
     return stopBackend(id_str, getFtdiBackend); 
+}
+
+extern "C" char* destroyFtdiBackend(const char* id_str) {
+    return destroyBackend(id_str, getFtdiBackend);
 }
 
 // For tests only
