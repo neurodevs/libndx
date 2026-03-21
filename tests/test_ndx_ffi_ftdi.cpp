@@ -69,6 +69,12 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if serial numb
     REQUIRE(json["error"] == "invalid serial number");
 }
 
+TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if JSON is malformed") {
+    auto json = createAndParse("{");
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "malformed JSON");
+}
+
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
     auto json = FtdiFfiFixture::start();    
     REQUIRE(json["status"] == 200);

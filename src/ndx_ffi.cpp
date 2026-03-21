@@ -78,6 +78,11 @@ extern "C" char* destroyBleBackend(const char* id_str) {
 
 extern "C" char* createFtdiBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
+
+    if (j.is_discarded()) {
+        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+    }
+
     std::string serial_number = j["serial_number"].get<std::string>();
 
     if (!is_valid_serial(serial_number)) {
