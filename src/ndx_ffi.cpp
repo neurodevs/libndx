@@ -56,6 +56,10 @@ extern "C" char* createBleBackend(const char* config_json) {
     return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
+extern "C" char* startBleBackend(const char* id_str) {
+    return to_ffi_result({{"status", 200}});
+}
+
 extern "C" char* createFtdiBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
     std::string serial_number = j["serial_number"].get<std::string>();

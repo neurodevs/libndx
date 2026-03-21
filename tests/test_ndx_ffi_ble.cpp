@@ -59,3 +59,10 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if address does 
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
+
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
+    const char* result = startBleBackend("AA:BB:CC:DD:EE:FF");
+    auto json = nlohmann::json::parse(result);
+    REQUIRE(json["status"] == 200);
+}
+
