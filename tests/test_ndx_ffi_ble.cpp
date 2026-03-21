@@ -13,7 +13,7 @@ struct BleFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = startBleBackend("AA:BB:CC:DD:EE:FF");
+    const char* result = startBleBackend("1");
     return nlohmann::json::parse(result);
   }
 };
@@ -75,3 +75,8 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns id") {
     REQUIRE(json.contains("id"));
 }
 
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
+    auto json = BleFfiFixture::start();
+    auto backend = getBleBackend(1);
+    REQUIRE(backend->is_running());
+}

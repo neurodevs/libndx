@@ -12,6 +12,16 @@ static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backend
 static int g_next_ble_id = 1;
 static int g_next_ftdi_id = 1;
 
+std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
+    auto it = g_ble_backends.find(id);
+    return (it != g_ble_backends.end()) ? it->second : nullptr;
+}
+
+std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
+    auto it = g_ftdi_backends.find(id);
+    return (it != g_ftdi_backends.end()) ? it->second : nullptr;
+}
+
 static bool is_valid_mac(const std::string& address) {
     const int num_colons = std::count(address.begin(), address.end(), ':');
     return address.size() == 17 && num_colons == 5;
@@ -57,6 +67,13 @@ extern "C" char* createBleBackend(const char* config_json) {
 }
 
 extern "C" char* startBleBackend(const char* id_str) {
+    int id = std::stoi(id_str);
+    auto backend = getBleBackend(id);
+
+    if (backend) {
+        backend->start([](const ndx::Packet&) {});
+    }
+
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
@@ -82,16 +99,6 @@ extern "C" char* startFtdiBackend(const char* id_str) {
 }
 
 // For tests only
-
-std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
-    auto it = g_ble_backends.find(id);
-    return (it != g_ble_backends.end()) ? it->second : nullptr;
-}
-
-std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
-    auto it = g_ftdi_backends.find(id);
-    return (it != g_ftdi_backends.end()) ? it->second : nullptr;
-}
 
 void resetBleBackends() {
     g_ble_backends.clear();
