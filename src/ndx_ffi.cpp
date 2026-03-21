@@ -73,7 +73,6 @@ extern "C" char* startBleBackend(const char* id_str) {
     if (backend) {
         backend->start([](const ndx::Packet&) {});
     }
-
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
@@ -95,6 +94,12 @@ extern "C" char* createFtdiBackend(const char* config_json) {
 }
 
 extern "C" char* startFtdiBackend(const char* id_str) {
+    int id = std::stoi(id_str);
+    auto backend = getFtdiBackend(id);
+
+    if (backend) {
+        backend->start([](const ndx::Packet&) {});
+    }
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
