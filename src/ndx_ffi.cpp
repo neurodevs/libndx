@@ -77,6 +77,10 @@ extern "C" char* createFtdiBackend(const char* config_json) {
     return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
+extern "C" char* startFtdiBackend(const char* id_str) {
+    return to_ffi_result({{"status", 200}});
+}
+
 // For tests only
 
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {

@@ -53,3 +53,9 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if serial numb
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid serial number");
 }
+
+TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
+    const char* result = startFtdiBackend("ABCD1234");
+    auto json = nlohmann::json::parse(result);
+    REQUIRE(json["status"] == 200);
+}
