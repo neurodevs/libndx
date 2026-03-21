@@ -75,6 +75,12 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if address does 
     REQUIRE(json["error"] == "invalid MAC address");
 }
 
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if JSON is malformed") {
+    auto json = createAndParse("{");
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "malformed JSON");
+}
+
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
     auto json = BleFfiFixture::start();
     REQUIRE(json["status"] == 200);

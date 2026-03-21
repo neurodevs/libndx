@@ -44,6 +44,11 @@ static bool is_ftdi_registered(const std::string& serial_number) {
 
 extern "C" char* createBleBackend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json, nullptr, false);
+
+    if (j.is_discarded()) {
+        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+    }
+
     std::string address = j["mac_address"].get<std::string>();
 
     if (!is_valid_mac(address)) {
