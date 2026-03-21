@@ -11,6 +11,10 @@ struct BleFfiFixture {
     const char* result = createBleBackend(config_json);
     return nlohmann::json::parse(result);
   }
+
+  const char* start() {
+    return startBleBackend("AA:BB:CC:DD:EE:FF");
+  }
 };
 
 struct ValidBleFixture : BleFfiFixture {
@@ -61,8 +65,13 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if address does 
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
-    const char* result = startBleBackend("AA:BB:CC:DD:EE:FF");
-    auto json = nlohmann::json::parse(result);
+    BleFfiFixture::start();
     REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns id") {
+    const char* result = BleFfiFixture::start();
+    auto json = nlohmann::json::parse(result);
+    REQUIRE(json.contains("id"));
 }
 
