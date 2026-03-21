@@ -16,6 +16,11 @@ struct BleFfiFixture {
     const char* result = startBleBackend("1");
     return nlohmann::json::parse(result);
   }
+
+  nlohmann::json stop() {
+    const char* result = stopBleBackend("1");
+    return nlohmann::json::parse(result);
+  }
 };
 
 struct ValidBleFixture : BleFfiFixture {
@@ -79,4 +84,23 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
     auto json = BleFfiFixture::start();
     auto backend = getBleBackend(1);
     REQUIRE(backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {
+    BleFfiFixture::start();
+    auto json = BleFfiFixture::stop();
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns id") {
+    BleFfiFixture::start();
+    auto json = BleFfiFixture::stop();
+    REQUIRE(json.contains("id"));
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend calls stop on backend") {
+    BleFfiFixture::start();
+    BleFfiFixture::stop();
+    auto backend = getBleBackend(1);
+    REQUIRE(!backend->is_running());
 }
