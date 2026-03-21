@@ -4,11 +4,13 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
+#include "ndx/ndx_ffi_impl.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
 
 static std::unordered_map<int, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
 static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
+
 static int g_next_ble_id = 1;
 static int g_next_ftdi_id = 1;
 
@@ -22,11 +24,6 @@ std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
     return (it != g_ftdi_backends.end()) ? it->second : nullptr;
 }
 
-static bool is_valid_mac(const std::string& address) {
-    const int num_colons = std::count(address.begin(), address.end(), ':');
-    return address.size() == 17 && num_colons == 5;
-}
-
 static bool is_ble_registered(const std::string& address) {
     for (const auto& [id, backend] : g_ble_backends) {
         if (backend->device_id() == address) {
@@ -36,9 +33,6 @@ static bool is_ble_registered(const std::string& address) {
     return false;
 }
 
-static bool is_valid_serial(const std::string& serial_number) {
-    return serial_number.size() == 8;
-}
 
 static bool is_ftdi_registered(const std::string& serial_number) {
     for (const auto& [id, backend] : g_ftdi_backends) {
@@ -47,36 +41,6 @@ static bool is_ftdi_registered(const std::string& serial_number) {
         }
     }
     return false;
-}
-
-static char* to_ffi_result(const nlohmann::json& j) {
-    return strdup(j.dump().c_str());
-}
-
-template<typename GetFn>
-static char* startBackend(const char* id_str, GetFn getBackend) {
-    int id = std::stoi(id_str);
-    auto backend = getBackend(id);
-    if (backend) backend->start([](const ndx::Packet&) {});
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
-}
-
-template<typename GetFn>
-static char* stopBackend(const char* id_str, GetFn getBackend) {
-    int id = std::stoi(id_str);
-    auto backend = getBackend(id);
-    if (backend) backend->stop();
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
-}
-
-template<typename GetFn>
-static char* destroyBackend(const char* id_str, GetFn getBackend) {
-    int id = std::stoi(id_str);
-    auto backend = getBackend(id);
-    if (backend && backend->is_running()) {
-        backend->stop();
-    }
-    return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
 extern "C" char* createBleBackend(const char* config_json) {
