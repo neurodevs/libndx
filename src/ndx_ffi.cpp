@@ -78,7 +78,7 @@ extern "C" char* createFtdiBackend(const char* config_json) {
 }
 
 extern "C" char* startFtdiBackend(const char* id_str) {
-    return to_ffi_result({{"status", 200}});
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
 // For tests only

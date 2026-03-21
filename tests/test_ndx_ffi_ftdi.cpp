@@ -11,6 +11,11 @@ struct FtdiFfiFixture {
     const char* result = createFtdiBackend(config_json);
     return nlohmann::json::parse(result);
   }
+
+  nlohmann::json start() {
+    const char* result = startFtdiBackend("ABCD1234");
+    return nlohmann::json::parse(result);
+  }
 };
 
 struct ValidFtdiFixture : FtdiFfiFixture {
@@ -55,7 +60,11 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if serial numb
 }
 
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
-    const char* result = startFtdiBackend("ABCD1234");
-    auto json = nlohmann::json::parse(result);
+    auto json = FtdiFfiFixture::start();    
     REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns id") {
+    auto json = FtdiFfiFixture::start();
+    REQUIRE(json.contains("id"));
 }
