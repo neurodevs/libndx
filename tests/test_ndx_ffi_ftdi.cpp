@@ -16,6 +16,11 @@ struct FtdiFfiFixture {
     const char* result = startFtdiBackend("1");
     return nlohmann::json::parse(result);
   }
+
+  nlohmann::json stop() {
+    const char* result = stopFtdiBackend("1");
+    return nlohmann::json::parse(result);
+  }
 };
 
 struct ValidFtdiFixture : FtdiFfiFixture {
@@ -73,4 +78,23 @@ TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend calls start on backend") {
     auto json = FtdiFfiFixture::start();
     auto backend = getFtdiBackend(1);
     REQUIRE(backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend returns ok") {
+    FtdiFfiFixture::start();
+    auto json = FtdiFfiFixture::stop();
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend returns id") {
+    FtdiFfiFixture::start();
+    auto json = FtdiFfiFixture::stop();
+    REQUIRE(json.contains("id"));
+}
+
+TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend calls stop on backend") {
+    FtdiFfiFixture::start();
+    FtdiFfiFixture::stop();
+    auto backend = getFtdiBackend(1);
+    REQUIRE(!backend->is_running());
 }

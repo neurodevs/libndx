@@ -113,6 +113,17 @@ extern "C" char* startFtdiBackend(const char* id_str) {
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 
+extern "C" char* stopFtdiBackend(const char* id_str) {
+    int id = std::stoi(id_str);
+    auto backend = getFtdiBackend(id);
+
+    if (backend) {
+        backend->stop();
+    }
+    return to_ffi_result({{"status", 200}, {"id", id_str}});
+}
+
+
 // For tests only
 
 void resetBleBackends() {
