@@ -2,13 +2,6 @@
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
 
-struct ThrowingBleBackend : ndx::BleBackend {
-  using ndx::BleBackend::BleBackend;
-  void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
-  void stop() override { throw std::runtime_error("hardware fault"); }
-  void destroy() override { throw std::runtime_error("hardware fault"); }
-};
-
 struct BleFfiFixture {
   BleFfiFixture() {
     resetBleBackends();
@@ -36,6 +29,12 @@ struct BleFfiFixture {
 
   void setThrowingFactory() {
     setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
+      struct ThrowingBleBackend : ndx::BleBackend {
+        using ndx::BleBackend::BleBackend;
+        void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+        void stop() override { throw std::runtime_error("hardware fault"); }
+        void destroy() override { throw std::runtime_error("hardware fault"); }
+      };
       return std::make_shared<ThrowingBleBackend>(id);
     });
   }

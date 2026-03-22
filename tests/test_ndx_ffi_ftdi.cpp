@@ -26,6 +26,18 @@ struct FtdiFfiFixture {
     const char* result = destroyFtdiBackend("1");
     return nlohmann::json::parse(result);
 }
+
+  void setThrowingFactory() {
+    setFtdiFactory([](const std::string& id) -> std::shared_ptr<ndx::FtdiBackend> {
+      struct ThrowingFtdiBackend : ndx::FtdiBackend {
+        using ndx::FtdiBackend::FtdiBackend;
+        void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+        void stop() override { throw std::runtime_error("hardware fault"); }
+        void destroy() override { throw std::runtime_error("hardware fault"); }
+      };
+      return std::make_shared<ThrowingFtdiBackend>(id);
+    });
+  }
 };
 
 struct ValidFtdiFixture : FtdiFfiFixture {
@@ -137,17 +149,18 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 500 on unexpected th
 }
 
 TEST_CASE_METHOD(FtdiFfiFixture, "startFtdiBackend returns 500 on unexpected throw") {
-  setFtdiFactory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
-    struct ThrowingFtdiBackend : ndx::FtdiBackend {
-      using ndx::FtdiBackend::FtdiBackend;
-      void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
-      void stop() override { throw std::runtime_error("hardware fault"); }
-      void destroy() override { throw std::runtime_error("hardware fault"); }
-    };
-    return std::make_shared<ThrowingFtdiBackend>("ABCD1234");
-  });
+  setThrowingFactory();
   createAndParse("{\"serial_number\":\"ABCD1234\"}");
   auto json = start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+}
+
+TEST_CASE_METHOD(FtdiFfiFixture, "stopFtdiBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("{\"serial_number\":\"ABCD1234\"}");
+  start();
+  auto json = stop();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
