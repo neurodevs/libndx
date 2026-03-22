@@ -129,7 +129,11 @@ extern "C" char* createFtdiBackend(const char* config_json) {
 }
 
 extern "C" char* startFtdiBackend(const char* id_str) {
-    return startBackend(id_str, getFtdiBackend); 
+    try {
+        return startBackend(id_str, getFtdiBackend); 
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
 }
 
 extern "C" char* stopFtdiBackend(const char* id_str) {

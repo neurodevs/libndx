@@ -75,15 +75,6 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 400 if JSON is malfo
     REQUIRE(json["error"] == "malformed JSON");
 }
 
-TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 500 on unexpected throw") {
-  setFtdiFactory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
-    throw std::runtime_error("hardware fault");
-  });
-  auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
     auto json = FtdiFfiFixture::start();    
     REQUIRE(json["status"] == 200);
@@ -134,4 +125,29 @@ TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend calls stop on backend") {
     FtdiFfiFixture::destroy();
     auto backend = getFtdiBackend(1);
     REQUIRE(!backend->is_running());
+}
+
+TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 500 on unexpected throw") {
+  setFtdiFactory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
+    throw std::runtime_error("hardware fault");
+  });
+  auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+}
+
+TEST_CASE_METHOD(FtdiFfiFixture, "startFtdiBackend returns 500 on unexpected throw") {
+  setFtdiFactory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
+    struct ThrowingFtdiBackend : ndx::FtdiBackend {
+      using ndx::FtdiBackend::FtdiBackend;
+      void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+      void stop() override { throw std::runtime_error("hardware fault"); }
+      void destroy() override { throw std::runtime_error("hardware fault"); }
+    };
+    return std::make_shared<ThrowingFtdiBackend>("ABCD1234");
+  });
+  createAndParse("{\"serial_number\":\"ABCD1234\"}");
+  auto json = start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
