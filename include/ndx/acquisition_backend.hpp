@@ -2,10 +2,17 @@
 #include <functional>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
+#include <string>
 
 namespace ndx {
 
-struct Packet;
+struct Packet {
+  std::string characteristic_uuid;
+  std::vector<uint32_t> data;
+  std::uint64_t timestamp_ms;
+};
+
 using PacketCallback = std::function<void(const Packet&)>;
 
 class AcquisitionBackend {

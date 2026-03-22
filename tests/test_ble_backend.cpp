@@ -1,8 +1,13 @@
 #include <catch2/catch_all.hpp>
 #include "ndx/ble_backend.hpp"
 
+struct TestableBleBackend : ndx::BleBackend {
+  using ndx::BleBackend::BleBackend;
+  void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
+};
+
 struct BleBackendFixture {
-  ndx::BleBackend backend{ "A1:B2:C3:D4:E5:F6" };
+  TestableBleBackend backend{ "A1:B2:C3:D4:E5:F6" };
 
   void start() {
     backend.start([](const ndx::Packet&) {});
@@ -25,6 +30,16 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") 
   start();
   REQUIRE(backend.is_running());
 }
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend start invokes callback when packet received") {
+  bool called = false;
+  backend.start([&](const ndx::Packet& p) {
+      called = true;
+  });
+  backend.simulatePacket(ndx::Packet{});
+  REQUIRE(called);
+}
+
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
   start();
