@@ -40,7 +40,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend invokes callback when packet rec
   REQUIRE(called);
 }
 
-
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
   start();
   stop();
