@@ -18,6 +18,10 @@ static BleFactory g_ble_factory = [](const std::string& device_id) {
     return std::make_shared<ndx::BleBackend>(device_id);
 };
 
+static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
+    return std::make_shared<ndx::FtdiBackend>(serial_number);
+};
+
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
     auto it = g_ble_backends.find(id);
     return (it != g_ble_backends.end()) ? it->second : nullptr;
@@ -66,6 +70,7 @@ extern "C" char* createBleBackend(const char* config_json) {
 
         int id = g_next_ble_id++;
         g_ble_backends[id] = g_ble_factory(address);
+
         return to_ffi_result({{"status", 200}, {"id", id}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
@@ -85,25 +90,30 @@ extern "C" char* destroyBleBackend(const char* id_str) {
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {
-    auto j = nlohmann::json::parse(config_json, nullptr, false);
+    try {
+        auto j = nlohmann::json::parse(config_json, nullptr, false);
 
-    if (j.is_discarded()) {
-        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        if (j.is_discarded()) {
+            return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        }
+
+        std::string serial_number = j["serial_number"].get<std::string>();
+
+        if (!is_valid_serial(serial_number)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
+        }
+
+        if (is_ftdi_registered(serial_number)) {
+            return to_ffi_result({{"status", 400}, {"error", "Serial number already registered"}});
+        }
+
+        int id = g_next_ftdi_id++;
+        g_ftdi_backends[id] = g_ftdi_factory(serial_number);
+
+        return to_ffi_result({{"status", 200}, {"id", id}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
-
-    std::string serial_number = j["serial_number"].get<std::string>();
-
-    if (!is_valid_serial(serial_number)) {
-        return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
-    }
-
-    if (is_ftdi_registered(serial_number)) {
-        return to_ffi_result({{"status", 400}, {"error", "Serial number already registered"}});
-    }
-
-    int id = g_next_ftdi_id++;
-    g_ftdi_backends[id] = std::make_shared<ndx::FtdiBackend>(serial_number);
-    return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
 extern "C" char* startFtdiBackend(const char* id_str) {
@@ -123,7 +133,7 @@ extern "C" char* destroyFtdiBackend(const char* id_str) {
 void resetBleBackends() {
     g_ble_backends.clear();
     g_next_ble_id = 1;
-    
+
     g_ble_factory = [](const std::string& device_id) {
         return std::make_shared<ndx::BleBackend>(device_id);
     };
@@ -132,8 +142,16 @@ void resetBleBackends() {
 void resetFtdiBackends() {
     g_ftdi_backends.clear();
     g_next_ftdi_id = 1;
+
+    g_ftdi_factory = [](const std::string& serial_number) {
+        return std::make_shared<ndx::FtdiBackend>(serial_number);
+    };
 }
 
 void setBleFactory(BleFactory factory) {
     g_ble_factory = factory;
+}
+
+void setFtdiFactory(FtdiFactory factory) {
+    g_ftdi_factory = factory;
 }

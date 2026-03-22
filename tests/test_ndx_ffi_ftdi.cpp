@@ -51,28 +51,37 @@ TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend constructs FtdiBackend ins
     REQUIRE(backend != nullptr);
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend returns error if serial number is already registered") {
-    auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
-    REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "Serial number already registered");
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend sets proper serial_number") {
     int id = json["id"].get<int>();
     auto backend = getFtdiBackend(id);
     REQUIRE(backend->device_id() == "ABCD1234");
 }
 
-TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if serial number is not size 8") {
+TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend returns 400 if serial number is already registered") {
+    auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "Serial number already registered");
+}
+
+TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 400 if serial number is not size 8") {
     auto json = createAndParse("{\"serial_number\":\"not-size-eight\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid serial number");
 }
 
-TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns error if JSON is malformed") {
+TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 400 if JSON is malformed") {
     auto json = createAndParse("{");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "malformed JSON");
+}
+
+TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 500 on unexpected throw") {
+  setFtdiFactory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
+    throw std::runtime_error("hardware fault");
+  });
+  auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
