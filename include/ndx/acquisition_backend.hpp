@@ -29,6 +29,10 @@ protected:
   std::string device_id_;
   bool is_running_ = false;
   virtual std::string name() const = 0;
+  void fireCallback(const Packet& p);
+
+private:
+  PacketCallback callback_;
 };
 
 }

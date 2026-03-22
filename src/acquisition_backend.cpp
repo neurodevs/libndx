@@ -9,7 +9,12 @@ void AcquisitionBackend::start(std::function<void(const Packet&)> callback) {
   if (is_running_) {
     throw std::runtime_error(name() + ": start called while already running");
   }
+  callback_ = callback;
   is_running_ = true;
+}
+
+void AcquisitionBackend::fireCallback(const Packet& p) {
+  callback_(p);
 }
 
 void AcquisitionBackend::stop() {
