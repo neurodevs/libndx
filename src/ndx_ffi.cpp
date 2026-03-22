@@ -95,7 +95,10 @@ extern "C" char* stopBleBackend(const char* id_str)  {
 
 extern "C" char* destroyBleBackend(const char* id_str) {
     try {
-        return destroyBackend(id_str, getBleBackend);
+        char* result = destroyBackend(id_str, getBleBackend);
+        int id = std::stoi(id_str);
+        g_ble_backends.erase(id);
+        return result;
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

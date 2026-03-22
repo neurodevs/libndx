@@ -139,11 +139,17 @@ TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend returns id") {
     REQUIRE(json.contains("id"));
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend calls stop on backend") {
+TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend calls stop on backend if running") {
     BleFfiFixture::start();
+    auto backend = getBleBackend(1);
+    BleFfiFixture::destroy();
+    REQUIRE(!backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend removes backend from registry") {
     BleFfiFixture::destroy();
     auto backend = getBleBackend(1);
-    REQUIRE(!backend->is_running());
+    REQUIRE(backend == nullptr);
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected throw") {
