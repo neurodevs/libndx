@@ -51,10 +51,10 @@ FetchContent_MakeAvailable(Catch2)
 enable_testing()
 
 add_executable(ndx_tests
-  tests/test_ndx_ffi_ble.cpp
-  tests/test_ndx_ffi_ftdi.cpp
   tests/test_ble_backend.cpp
+  tests/test_ble_ffi.cpp
   tests/test_ftdi_backend.cpp
+  tests/test_ftdi_ffi.cpp
 )
 
 target_compile_definitions(ndx_tests PRIVATE NDX_TESTING)
