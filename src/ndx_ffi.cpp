@@ -149,7 +149,10 @@ extern "C" char* stopFtdiBackend(const char* id_str) {
 
 extern "C" char* destroyFtdiBackend(const char* id_str) {
     try {
-        return destroyBackend(id_str, getFtdiBackend);
+        char* result = destroyBackend(id_str, getFtdiBackend);
+        int id = std::stoi(id_str);
+        g_ftdi_backends.erase(id);
+        return result;
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

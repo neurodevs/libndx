@@ -134,9 +134,16 @@ TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend returns id") {
 
 TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend calls stop on backend") {
     FtdiFfiFixture::start();
+    auto backend = getFtdiBackend(1);
+    FtdiFfiFixture::destroy();
+    REQUIRE(!backend->is_running());
+}
+
+
+TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend removes backend from registry") {
     FtdiFfiFixture::destroy();
     auto backend = getFtdiBackend(1);
-    REQUIRE(!backend->is_running());
+    REQUIRE(backend == nullptr);
 }
 
 TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 500 on unexpected throw") {
