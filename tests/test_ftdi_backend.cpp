@@ -1,8 +1,13 @@
 #include <catch2/catch_all.hpp>
 #include "ndx/ftdi_backend.hpp"
 
+struct TestableFtdiBackend : ndx::FtdiBackend {
+  using ndx::FtdiBackend::FtdiBackend;
+  void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
+};
+
 struct FtdiBackendFixture {
-  ndx::FtdiBackend backend{ "ABCD1234" };
+  TestableFtdiBackend backend{ "ABCD1234" };
 
   void start() {
     backend.start([](const ndx::Packet&) {});
@@ -24,6 +29,15 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend can be instantiated") {
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true") {
   start();
   REQUIRE(backend.is_running());
+}
+
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start invokes callback when packet received") {
+  bool called = false;
+  backend.start([&](const ndx::Packet& p) {
+      called = true;
+  });
+  backend.simulatePacket(ndx::Packet{});
+  REQUIRE(called);
 }
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend stop sets is_running to false") {
