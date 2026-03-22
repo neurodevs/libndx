@@ -32,6 +32,11 @@ struct ValidBleFixture : BleFfiFixture {
   nlohmann::json json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
 };
 
+struct ThrowingBleBackend : ndx::BleBackend {
+  using ndx::BleBackend::BleBackend;
+  void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+};
+
 TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
@@ -104,6 +109,16 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
     auto json = BleFfiFixture::start();
     auto backend = getBleBackend(1);
     REQUIRE(backend->is_running());
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw") {
+  setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
+    return std::make_shared<ThrowingBleBackend>(id);
+  });
+  createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  auto json = BleFfiFixture::start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {

@@ -78,7 +78,11 @@ extern "C" char* createBleBackend(const char* config_json) {
 }
 
 extern "C" char* startBleBackend(const char* id_str) {
-    return startBackend(id_str, getBleBackend); 
+    try {
+        return startBackend(id_str, getBleBackend); 
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
 }
 
 extern "C" char* stopBleBackend(const char* id_str)  {
