@@ -23,11 +23,16 @@ void ndx_free_string(char* ptr);
 #ifdef __cplusplus
 }
 
+#include <functional>
+#include <string>
+using BleFactory = std::function<std::shared_ptr<ndx::BleBackend>(const std::string&)>;
+
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id);
 std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id);
 void resetBleBackends();
 void resetFtdiBackends();
+void setBleFactory(BleFactory factory);
 #endif
 
 #endif

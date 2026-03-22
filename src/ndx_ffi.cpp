@@ -14,6 +14,10 @@ static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backend
 static int g_next_ble_id = 1;
 static int g_next_ftdi_id = 1;
 
+static BleFactory g_ble_factory = [](const std::string& device_id) {
+    return std::make_shared<ndx::BleBackend>(device_id);
+};
+
 std::shared_ptr<ndx::BleBackend> getBleBackend(int id) {
     auto it = g_ble_backends.find(id);
     return (it != g_ble_backends.end()) ? it->second : nullptr;
@@ -43,25 +47,29 @@ static bool is_ftdi_registered(const std::string& serial_number) {
 }
 
 extern "C" char* createBleBackend(const char* config_json) {
-    auto j = nlohmann::json::parse(config_json, nullptr, false);
+    try {
+        auto j = nlohmann::json::parse(config_json, nullptr, false);
 
-    if (j.is_discarded()) {
-        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        if (j.is_discarded()) {
+            return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        }
+
+        std::string address = j["mac_address"].get<std::string>();
+
+        if (!is_valid_mac(address)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid MAC address"}});
+        }
+
+        if (is_ble_registered(address)) {
+            return to_ffi_result({{"status", 400}, {"error", "MAC address already registered"}});
+        }
+
+        int id = g_next_ble_id++;
+        g_ble_backends[id] = g_ble_factory(address);
+        return to_ffi_result({{"status", 200}, {"id", id}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
-
-    std::string address = j["mac_address"].get<std::string>();
-
-    if (!is_valid_mac(address)) {
-        return to_ffi_result({{"status", 400}, {"error", "invalid MAC address"}});
-    }
-
-    if (is_ble_registered(address)) {
-        return to_ffi_result({{"status", 400}, {"error", "MAC address already registered"}});
-    }
-
-    int id = g_next_ble_id++;
-    g_ble_backends[id] = std::make_shared<ndx::BleBackend>(address);
-    return to_ffi_result({{"status", 200}, {"id", id}});
 }
 
 extern "C" char* startBleBackend(const char* id_str) {
@@ -115,9 +123,17 @@ extern "C" char* destroyFtdiBackend(const char* id_str) {
 void resetBleBackends() {
     g_ble_backends.clear();
     g_next_ble_id = 1;
+    
+    g_ble_factory = [](const std::string& device_id) {
+        return std::make_shared<ndx::BleBackend>(device_id);
+    };
 }
 
 void resetFtdiBackends() {
     g_ftdi_backends.clear();
     g_next_ftdi_id = 1;
+}
+
+void setBleFactory(BleFactory factory) {
+    g_ble_factory = factory;
 }

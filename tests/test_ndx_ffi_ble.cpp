@@ -57,28 +57,37 @@ TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper mac_address") {
     REQUIRE(backend->device_id() == "AA:BB:CC:DD:EE:FF");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns error if address is already registered") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns 400 if address is already registered") {
     auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "MAC address already registered");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if address is not size 17") {
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if address is not size 17") {
     auto json = createAndParse("{\"mac_address\":\"not-mac-address\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if address does not contain 5 colons") {
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if address does not contain 5 colons") {
     auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE;FF\"}");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid MAC address");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns error if JSON is malformed") {
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if JSON is malformed") {
     auto json = createAndParse("{");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "malformed JSON");
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected throw") {
+  setBleFactory([](const std::string&) -> std::shared_ptr<ndx::BleBackend> {
+    throw std::runtime_error("hardware fault");
+  });
+  auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
