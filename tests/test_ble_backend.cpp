@@ -4,6 +4,8 @@
 struct TestableBleBackend : ndx::BleBackend {
   using ndx::BleBackend::BleBackend;
   void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
+  bool bt_powered_on = true;
+  bool isBluetoothPoweredOn() override { return bt_powered_on; }
 };
 
 struct BleBackendFixture {
@@ -64,4 +66,9 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws if already running"
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
   REQUIRE_THROWS_WITH(stop(), "BleBackend: stop called while not running");
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is not powered on") {
+  backend.bt_powered_on = false;
+  REQUIRE_THROWS_WITH(start(), "BleBackend: Bluetooth is not powered on");
 }
