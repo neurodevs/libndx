@@ -3,18 +3,14 @@
 
 namespace ndx {
 
-BleBackend::BleBackend(const std::string& device_id)
-  : AcquisitionBackend(device_id) {}
+BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleStateProvider> provider)
+  : AcquisitionBackend(device_id), provider_(std::move(provider)) {}
 
 void BleBackend::start(PacketCallback cb) {
-  if (!isBluetoothPoweredOn()) {
+  if (!provider_->isPoweredOn()) {
     throw std::runtime_error("BleBackend: Bluetooth is not powered on");
   }
   AcquisitionBackend::start(cb);
-}
-
-bool BleBackend::isBluetoothPoweredOn() {
-  return true;
 }
 
 }

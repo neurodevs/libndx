@@ -1,15 +1,23 @@
 #include <catch2/catch_all.hpp>
 #include "ndx/ble_backend.hpp"
 
+struct FakeBleStateProvider : ndx::BleStateProvider {
+  bool powered_on = true;
+  bool isPoweredOn() override { return powered_on; }
+};
+
 struct TestableBleBackend : ndx::BleBackend {
   using ndx::BleBackend::BleBackend;
   void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
-  bool bt_powered_on = true;
-  bool isBluetoothPoweredOn() override { return bt_powered_on; }
 };
 
 struct BleBackendFixture {
-  TestableBleBackend backend{ "A1:B2:C3:D4:E5:F6" };
+  FakeBleStateProvider* provider;
+  TestableBleBackend backend;
+
+  BleBackendFixture()
+    : provider(new FakeBleStateProvider()),
+      backend("A1:B2:C3:D4:E5:F6", std::unique_ptr<ndx::BleStateProvider>(provider)) {}
 
   void start() {
     backend.start([](const ndx::Packet&) {});
@@ -69,6 +77,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is not powered on") {
-  backend.bt_powered_on = false;
+  provider->powered_on = false;
   REQUIRE_THROWS_WITH(start(), "BleBackend: Bluetooth is not powered on");
 }

@@ -10,6 +10,7 @@ set(NDX_SOURCES
   src/ndx_ffi.cpp
   src/acquisition_backend.cpp
   src/ble/ble_backend.cpp
+  src/ble/ble_state_provider.cpp
   src/ftdi/ftdi_backend.cpp
 )
 
