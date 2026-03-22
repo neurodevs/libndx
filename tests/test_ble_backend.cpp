@@ -32,6 +32,11 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") 
   REQUIRE_FALSE(backend.is_running());
 }
 
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy works if not running") {
+  destroy();
+  REQUIRE_FALSE(backend.is_running());
+}
+
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_running to false") {
   start();
   destroy();

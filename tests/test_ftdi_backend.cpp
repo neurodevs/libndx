@@ -11,6 +11,10 @@ struct FtdiBackendFixture {
   void stop() {
     backend.stop();
   }
+
+  void destroy() {
+    backend.destroy();
+  }
 };
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend can be instantiated") {
@@ -25,6 +29,17 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true"
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend stop sets is_running to false") {
   start();
   stop();
+  REQUIRE_FALSE(backend.is_running());
+}
+
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend destroy works if not running") {
+  destroy();
+  REQUIRE_FALSE(backend.is_running());
+}
+
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend destroy sets is_running to false") {
+  start();
+  destroy();
   REQUIRE_FALSE(backend.is_running());
 }
 

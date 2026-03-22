@@ -20,7 +20,9 @@ void AcquisitionBackend::stop() {
 }
 
 void AcquisitionBackend::destroy() {
-  stop();
+  if (is_running_) {
+    stop();
+  }
 }
 
 }
