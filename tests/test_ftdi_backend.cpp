@@ -31,7 +31,7 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true"
   REQUIRE(backend.is_running());
 }
 
-TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start invokes callback when packet received") {
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend invokes callback when packet received") {
   bool called = false;
   backend.start([&](const ndx::Packet& p) {
       called = true;
