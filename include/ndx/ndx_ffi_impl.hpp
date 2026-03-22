@@ -38,6 +38,6 @@ template<typename GetFn>
 static char* destroyBackend(const char* id_str, GetFn getBackend) {
     int id = std::stoi(id_str);
     auto backend = getBackend(id);
-    if (backend && backend->is_running()) backend->stop();
+    if (backend) backend->destroy();
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }

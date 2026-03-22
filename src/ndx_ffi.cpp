@@ -94,7 +94,11 @@ extern "C" char* stopBleBackend(const char* id_str)  {
 }
 
 extern "C" char* destroyBleBackend(const char* id_str) {
-    return destroyBackend(id_str, getBleBackend);
+    try {
+        return destroyBackend(id_str, getBleBackend);
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {
