@@ -11,6 +11,10 @@ struct BleBackendFixture {
   void stop() {
     backend.stop();
   }
+
+  void destroy() {
+    backend.destroy();
+  }
 };
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
@@ -25,6 +29,12 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
   start();
   stop();
+  REQUIRE_FALSE(backend.is_running());
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_running to false") {
+  start();
+  destroy();
   REQUIRE_FALSE(backend.is_running());
 }
 

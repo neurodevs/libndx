@@ -14,6 +14,7 @@ public:
   virtual ~AcquisitionBackend() = default;
   virtual void start(PacketCallback cb);
   virtual void stop();
+  virtual void destroy();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }
 

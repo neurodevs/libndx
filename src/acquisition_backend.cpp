@@ -19,4 +19,8 @@ void AcquisitionBackend::stop() {
   is_running_ = false;
 }
 
+void AcquisitionBackend::destroy() {
+  stop();
+}
+
 }
