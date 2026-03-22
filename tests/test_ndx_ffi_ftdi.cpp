@@ -164,3 +164,11 @@ TEST_CASE_METHOD(FtdiFfiFixture, "stopFtdiBackend returns 500 on unexpected thro
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
+
+TEST_CASE_METHOD(FtdiFfiFixture, "destroyFtdiBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("{\"serial_number\":\"ABCD1234\"}");
+  auto json = destroy();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+}
