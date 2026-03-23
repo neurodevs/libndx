@@ -54,6 +54,7 @@ enable_testing()
 add_executable(ndx_tests
   tests/test_ble_backend.cpp
   tests/test_ble_ffi.cpp
+  tests/test_ble_state_provider.cpp
   tests/test_ftdi_backend.cpp
   tests/test_ftdi_ffi.cpp
 )

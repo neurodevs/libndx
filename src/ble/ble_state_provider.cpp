@@ -6,4 +6,8 @@ bool BleStateProviderImpl::isPoweredOn() {
   return false;
 }
 
+std::unique_ptr<BleStateProvider> createBleStateProvider() {
+  return std::make_unique<BleStateProviderImpl>();
+}
+
 }
