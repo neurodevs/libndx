@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "ndx/ble_backend.hpp"
 
-struct FakeBleStateProvider : ndx::BleStateProvider {
+struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
   bool isPoweredOn() override { return powered_on; }
 };
@@ -12,12 +12,12 @@ struct TestableBleBackend : ndx::BleBackend {
 };
 
 struct BleBackendFixture {
-  FakeBleStateProvider* provider;
+  FakeBleProvider* provider;
   TestableBleBackend backend;
 
   BleBackendFixture()
-    : provider(new FakeBleStateProvider()),
-      backend("A1:B2:C3:D4:E5:F6", std::unique_ptr<ndx::BleStateProvider>(provider)) {}
+    : provider(new FakeBleProvider()),
+      backend("A1:B2:C3:D4:E5:F6", std::unique_ptr<ndx::BleProvider>(provider)) {}
 
   void start() {
     backend.start([](const ndx::Packet&) {});

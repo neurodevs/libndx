@@ -1,4 +1,4 @@
-#include "ndx/ble_state_provider.hpp"
+#include "ndx/ble_provider.hpp"
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <Foundation/Foundation.h>
 
@@ -11,9 +11,9 @@
 
 namespace ndx {
 
-class CoreBluetoothStateProvider : public BleStateProvider {
+class CoreBluetoothProvider : public BleProvider {
 public:
-  CoreBluetoothStateProvider() {
+  CoreBluetoothProvider() {
     delegate_ = [[CBStateDelegate alloc] init];
     manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:nil];
     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
@@ -28,8 +28,8 @@ private:
   CBCentralManager* manager_;
 };
 
-std::unique_ptr<BleStateProvider> createBleStateProvider() {
-  return std::make_unique<CoreBluetoothStateProvider>();
+std::unique_ptr<BleProvider> createBleProvider() {
+  return std::make_unique<CoreBluetoothProvider>();
 }
 
 }

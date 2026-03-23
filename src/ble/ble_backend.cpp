@@ -3,7 +3,7 @@
 
 namespace ndx {
 
-BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleStateProvider> provider)
+BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider)
   : AcquisitionBackend(device_id), provider_(std::move(provider)) {}
 
 void BleBackend::start(PacketCallback cb) {

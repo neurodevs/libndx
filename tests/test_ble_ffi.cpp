@@ -2,7 +2,7 @@
 #include <nlohmann/json.hpp>
 #include "ndx/ndx_ffi.hpp"
 
-struct AlwaysOnBleStateProvider : ndx::BleStateProvider {
+struct AlwaysOnBleProvider : ndx::BleProvider {
   bool isPoweredOn() override { return true; }
 };
 
@@ -10,7 +10,7 @@ struct BleFfiFixture {
   BleFfiFixture() {
     resetBleBackends();
     setBleFactory([](const std::string& id) {
-      return std::make_shared<ndx::BleBackend>(id, std::make_unique<AlwaysOnBleStateProvider>());
+      return std::make_shared<ndx::BleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
     });
   }
 
@@ -42,7 +42,7 @@ struct BleFfiFixture {
         void stop() override { throw std::runtime_error("hardware fault"); }
         void destroy() override { throw std::runtime_error("hardware fault"); }
       };
-      return std::make_shared<ThrowingBleBackend>(id, std::make_unique<AlwaysOnBleStateProvider>());
+      return std::make_shared<ThrowingBleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
     });
   }
 };

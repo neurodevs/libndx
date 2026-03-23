@@ -14,9 +14,9 @@ set(NDX_SOURCES
 )
 
 if(APPLE)
-  list(APPEND NDX_SOURCES src/ble/ble_state_provider_mac.mm)
+  list(APPEND NDX_SOURCES src/ble/core_bluetooth_provider.mm)
 else()
-  list(APPEND NDX_SOURCES src/ble/ble_state_provider.cpp)
+  list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
 endif()
 
 add_library(ndx STATIC ${NDX_SOURCES})
@@ -59,7 +59,7 @@ enable_testing()
 add_executable(ndx_tests
   tests/test_ble_backend.cpp
   tests/test_ble_ffi.cpp
-  tests/test_ble_state_provider.cpp
+  tests/test_ble_provider.cpp
   tests/test_ftdi_backend.cpp
   tests/test_ftdi_ffi.cpp
 )
