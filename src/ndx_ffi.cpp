@@ -16,7 +16,7 @@ static int g_next_ble_id = 1;
 static int g_next_ftdi_id = 1;
 
 static BleFactory g_ble_factory = [](const std::string& device_id) {
-    return std::make_shared<ndx::BleBackend>(device_id, std::make_unique<ndx::BleStateProviderImpl>());
+    return std::make_shared<ndx::BleBackend>(device_id, ndx::createBleStateProvider());
 };
 
 static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
@@ -166,7 +166,7 @@ void resetBleBackends() {
     g_next_ble_id = 1;
 
     g_ble_factory = [](const std::string& device_id) {
-        return std::make_shared<ndx::BleBackend>(device_id, std::make_unique<ndx::BleStateProviderImpl>());
+        return std::make_shared<ndx::BleBackend>(device_id, ndx::createBleStateProvider());
     };
 }
 
