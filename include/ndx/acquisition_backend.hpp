@@ -8,7 +8,6 @@
 namespace ndx {
 
 struct Packet {
-  std::string characteristic_uuid;
   std::vector<uint32_t> data;
   std::uint64_t timestamp_ms;
 };

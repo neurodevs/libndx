@@ -58,7 +58,6 @@ public:
   void onCharacteristicValue(CBCharacteristic* characteristic) {
     NSData* data = characteristic.value;
     Packet packet;
-    packet.characteristic_uuid = characteristic.UUID.UUIDString.UTF8String;
     const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
     packet.timestamp_ms = 0;
