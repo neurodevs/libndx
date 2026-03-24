@@ -31,7 +31,7 @@ struct FtdiFfiFixture {
     setFtdiFactory([](const std::string& id) -> std::shared_ptr<ndx::FtdiBackend> {
       struct ThrowingFtdiBackend : ndx::FtdiBackend {
         using ndx::FtdiBackend::FtdiBackend;
-        void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+        void start(ndx::OnDataCallback) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
         void destroy() override { throw std::runtime_error("hardware fault"); }
       };

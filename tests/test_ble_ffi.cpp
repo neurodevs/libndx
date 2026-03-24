@@ -4,7 +4,7 @@
 
 struct AlwaysOnBleProvider : ndx::BleProvider {
   bool isPoweredOn() override { return true; }
-  void scanForPeripheral(const std::string&, ndx::DidConnectCallback) override {}
+  void scanForPeripheral(const std::string&, ndx::OnDataCallback) override {}
 };
 
 struct BleFfiFixture {
@@ -39,7 +39,7 @@ struct BleFfiFixture {
     setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
-        void start(ndx::PacketCallback) override { throw std::runtime_error("hardware fault"); }
+        void start(ndx::OnDataCallback) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
         void destroy() override { throw std::runtime_error("hardware fault"); }
       };

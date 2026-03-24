@@ -13,13 +13,13 @@ struct Packet {
   std::uint64_t timestamp_ms;
 };
 
-using PacketCallback = std::function<void(const Packet&)>;
+using OnDataCallback = std::function<void(const Packet&)>;
 
 class AcquisitionBackend {
 public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
-  virtual void start(PacketCallback cb);
+  virtual void start(OnDataCallback cb);
   virtual void stop();
   virtual void destroy();
   bool is_running() const { return is_running_; }
@@ -32,7 +32,7 @@ protected:
   void fireCallback(const Packet& p);
 
 private:
-  PacketCallback callback_;
+  OnDataCallback callback_;
 };
 
 }

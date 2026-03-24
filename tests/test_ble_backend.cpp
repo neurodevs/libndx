@@ -4,15 +4,11 @@
 struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
   std::string scan_requested_for;
-  ndx::DidConnectCallback did_connect_callback;
 
   bool isPoweredOn() override { return powered_on; }
-  void scanForPeripheral(const std::string& id, ndx::DidConnectCallback cb) override {
+  void scanForPeripheral(const std::string& id, ndx::OnDataCallback) override {
     scan_requested_for = id;
-    did_connect_callback = cb;
   }
-
-  void simulateConnected() { did_connect_callback(); }
 };
 
 struct TestableBleBackend : ndx::BleBackend {
@@ -95,7 +91,3 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with 
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend start passes DidConnectCallback to scanForPeripheral") {
-  start();
-  REQUIRE(provider->did_connect_callback != nullptr);
-}

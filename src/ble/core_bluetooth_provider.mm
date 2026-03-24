@@ -2,11 +2,10 @@
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <Foundation/Foundation.h>
 
-@interface CBStateDelegate : NSObject <CBCentralManagerDelegate>
-@end
+namespace ndx { class CoreBluetoothProvider; }
 
-@implementation CBStateDelegate
-- (void)centralManagerDidUpdateState:(CBCentralManager*)central {}
+@interface CoreBluetoothDelegate : NSObject <CBCentralManagerDelegate, CBPeripheralDelegate>
+- (instancetype)initWithProvider:(ndx::CoreBluetoothProvider*)provider;
 @end
 
 namespace ndx {
@@ -14,7 +13,7 @@ namespace ndx {
 class CoreBluetoothProvider : public BleProvider {
 public:
   CoreBluetoothProvider() {
-    delegate_ = [[CBStateDelegate alloc] init];
+    delegate_ = [[CoreBluetoothDelegate alloc] initWithProvider:this];
     manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:nil];
     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
   }
@@ -23,13 +22,55 @@ public:
     return manager_.state == CBManagerStatePoweredOn;
   }
 
-  void scanForPeripheral(const std::string&, ndx::DidConnectCallback) override {
+  void scanForPeripheral(const std::string& id, OnDataCallback on_data) override {
+    target_id_ = [NSString stringWithUTF8String:id.c_str()];
+    on_data_ = on_data;
     [manager_ scanForPeripheralsWithServices:nil options:nil];
   }
 
+  void onDiscoveredPeripheral(CBPeripheral* peripheral) {
+    if ([peripheral.identifier.UUIDString isEqualToString:target_id_]) {
+      peripheral_ = peripheral;
+      [manager_ stopScan];
+      [manager_ connectPeripheral:peripheral_ options:nil];
+    }
+  }
+
+  void onConnected(CBPeripheral* peripheral) {
+    peripheral.delegate = delegate_;
+    [peripheral discoverServices:nil];
+  }
+
+  void onDiscoveredServices(CBPeripheral* peripheral) {
+    for (CBService* service in peripheral.services) {
+      [peripheral discoverCharacteristics:nil forService:service];
+    }
+  }
+
+  void onDiscoveredCharacteristics(CBPeripheral* peripheral, CBService* service) {
+    for (CBCharacteristic* characteristic in service.characteristics) {
+      if (characteristic.properties & CBCharacteristicPropertyNotify) {
+        [peripheral setNotifyValue:YES forCharacteristic:characteristic];
+      }
+    }
+  }
+
+  void onCharacteristicValue(CBCharacteristic* characteristic) {
+    NSData* data = characteristic.value;
+    Packet packet;
+    packet.characteristic_uuid = characteristic.UUID.UUIDString.UTF8String;
+    const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
+    packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
+    packet.timestamp_ms = 0;
+    on_data_(packet);
+  }
+
 private:
-  CBStateDelegate* delegate_;
+  CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
+  CBPeripheral* peripheral_;
+  NSString* target_id_;
+  OnDataCallback on_data_;
 };
 
 std::unique_ptr<BleProvider> createBleProvider() {
@@ -37,3 +78,46 @@ std::unique_ptr<BleProvider> createBleProvider() {
 }
 
 }
+
+@implementation CoreBluetoothDelegate {
+  ndx::CoreBluetoothProvider* _provider;
+}
+
+- (instancetype)initWithProvider:(ndx::CoreBluetoothProvider*)provider {
+  self = [super init];
+  _provider = provider;
+  return self;
+}
+
+- (void)centralManagerDidUpdateState:(CBCentralManager*)central {}
+
+- (void)centralManager:(CBCentralManager*)central
+ didDiscoverPeripheral:(CBPeripheral*)peripheral
+     advertisementData:(NSDictionary*)advertisementData
+                  RSSI:(NSNumber*)RSSI {
+  _provider->onDiscoveredPeripheral(peripheral);
+}
+
+- (void)centralManager:(CBCentralManager*)central
+  didConnectPeripheral:(CBPeripheral*)peripheral {
+  _provider->onConnected(peripheral);
+}
+
+- (void)peripheral:(CBPeripheral*)peripheral
+didDiscoverServices:(NSError*)error {
+  _provider->onDiscoveredServices(peripheral);
+}
+
+- (void)peripheral:(CBPeripheral*)peripheral
+didDiscoverCharacteristicsForService:(CBService*)service
+             error:(NSError*)error {
+  _provider->onDiscoveredCharacteristics(peripheral, service);
+}
+
+- (void)peripheral:(CBPeripheral*)peripheral
+didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic
+             error:(NSError*)error {
+  _provider->onCharacteristicValue(characteristic);
+}
+
+@end
