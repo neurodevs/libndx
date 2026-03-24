@@ -1,4 +1,5 @@
 #include "ndx/ble_provider.hpp"
+#include <lsl_c.h>
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <Foundation/Foundation.h>
 
@@ -56,11 +57,12 @@ public:
   }
 
   void onCharacteristicValue(CBCharacteristic* characteristic) {
+    uint64_t timestamp_ms = static_cast<uint64_t>(lsl_local_clock() * 1000.0);
     NSData* data = characteristic.value;
     Packet packet;
+    packet.timestamp_ms = timestamp_ms;
     const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
-    packet.timestamp_ms = 0;
     on_data_(packet);
   }
 
