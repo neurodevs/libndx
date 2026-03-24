@@ -23,6 +23,10 @@ public:
     return manager_.state == CBManagerStatePoweredOn;
   }
 
+  void scanForPeripheral(const std::string&) override {
+    [manager_ scanForPeripheralsWithServices:nil options:nil];
+  }
+
 private:
   CBStateDelegate* delegate_;
   CBCentralManager* manager_;

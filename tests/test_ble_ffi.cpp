@@ -4,6 +4,7 @@
 
 struct AlwaysOnBleProvider : ndx::BleProvider {
   bool isPoweredOn() override { return true; }
+  void scanForPeripheral(const std::string&) override {}
 };
 
 struct BleFfiFixture {

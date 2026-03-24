@@ -3,7 +3,10 @@
 
 struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
+  std::string scan_requested_for;
+
   bool isPoweredOn() override { return powered_on; }
+  void scanForPeripheral(const std::string& id) override { scan_requested_for = id; }
 };
 
 struct TestableBleBackend : ndx::BleBackend {
@@ -79,4 +82,9 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is not powered on") {
   provider->powered_on = false;
   REQUIRE_THROWS_WITH(start(), "BleBackend: Bluetooth is not powered on");
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with device_id") {
+  start();
+  REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
 }

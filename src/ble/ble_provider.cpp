@@ -5,6 +5,7 @@ namespace ndx {
 class BleProviderImpl : public BleProvider {
 public:
   bool isPoweredOn() override { return false; }
+  void scanForPeripheral(const std::string&) override {}
 };
 
 std::unique_ptr<BleProvider> createBleProvider() {
