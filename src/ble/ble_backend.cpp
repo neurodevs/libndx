@@ -13,7 +13,7 @@ BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleProvider
     throw std::runtime_error("BleBackend: Bluetooth is not powered on");
   }
 
-provider_->scanForPeripheral(device_id_);
+  provider_->scanForPeripheral(device_id_, []() {});
 }
 
 }

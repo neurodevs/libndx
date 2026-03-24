@@ -23,7 +23,7 @@ public:
     return manager_.state == CBManagerStatePoweredOn;
   }
 
-  void scanForPeripheral(const std::string&) override {
+  void scanForPeripheral(const std::string&, ndx::DidConnectCallback) override {
     [manager_ scanForPeripheralsWithServices:nil options:nil];
   }
 
