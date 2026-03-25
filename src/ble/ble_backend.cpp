@@ -16,4 +16,8 @@ BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleProvider
   provider_->scanForPeripheral(device_id_, cb);
 }
 
+void BleBackend::scanAll(int duration_ms, ScanResultCallback on_complete) {
+  provider_->scanAll(duration_ms, on_complete);
+}
+
 }

@@ -25,6 +25,8 @@ public:
     return manager_.state == CBManagerStatePoweredOn;
   }
 
+  void scanAll(int duration_ms, ScanResultCallback on_complete) override {}
+
   void scanForPeripheral(const std::string& id, OnDataCallback on_data) override {
     delegate_.targetId = [NSString stringWithUTF8String:id.c_str()];
     on_data_ = on_data;
