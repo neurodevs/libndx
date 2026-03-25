@@ -7,6 +7,8 @@ namespace ndx { class CoreBluetoothProvider; }
 
 @interface CoreBluetoothDelegate : NSObject <CBCentralManagerDelegate, CBPeripheralDelegate>
 - (instancetype)initWithProvider:(ndx::CoreBluetoothProvider*)provider;
+@property (nonatomic, strong) CBPeripheral* peripheral;
+@property (nonatomic, strong) NSString* targetId;
 @end
 
 namespace ndx {
@@ -24,16 +26,17 @@ public:
   }
 
   void scanForPeripheral(const std::string& id, OnDataCallback on_data) override {
-    target_id_ = [NSString stringWithUTF8String:id.c_str()];
+    delegate_.targetId = [NSString stringWithUTF8String:id.c_str()];
     on_data_ = on_data;
     [manager_ scanForPeripheralsWithServices:nil options:nil];
   }
 
   void onDiscoveredPeripheral(CBPeripheral* peripheral) {
-    if ([peripheral.identifier.UUIDString isEqualToString:target_id_]) {
-      peripheral_ = peripheral;
+    if ([peripheral.identifier.UUIDString isEqualToString:delegate_.targetId]) {
+      NSLog(@"discovered: %@ name: %@", peripheral.identifier.UUIDString, peripheral.name);
+      delegate_.peripheral = peripheral;
       [manager_ stopScan];
-      [manager_ connectPeripheral:peripheral_ options:nil];
+      [manager_ connectPeripheral:peripheral options:nil];
     }
   }
 
@@ -69,8 +72,6 @@ public:
 private:
   CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
-  CBPeripheral* peripheral_;
-  NSString* target_id_;
   OnDataCallback on_data_;
 };
 

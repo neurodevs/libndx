@@ -75,3 +75,8 @@ target_link_libraries(ndx_tests PRIVATE
 include(CTest)
 include(Catch)
 catch_discover_tests(ndx_tests)
+
+if(APPLE)
+  add_executable(run_ble_test tools/run_ble_test.mm)
+  target_link_libraries(run_ble_test PRIVATE ndx)
+endif()
