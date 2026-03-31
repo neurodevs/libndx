@@ -83,4 +83,10 @@ if(APPLE)
     "-framework CoreBluetooth"
     "-framework Foundation"
   )
+
+  add_executable(scan_ble tools/scan_all_ble.mm)
+  target_link_libraries(scan_ble PRIVATE
+    "-framework CoreBluetooth"
+    "-framework Foundation"
+  )
 endif()
