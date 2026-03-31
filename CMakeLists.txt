@@ -84,6 +84,12 @@ if(APPLE)
     "-framework Foundation"
   )
 
+  add_executable(run_govee tools/run_govee.mm)
+  target_link_libraries(run_govee PRIVATE
+    "-framework CoreBluetooth"
+    "-framework Foundation"
+  )
+
   add_executable(scan_ble tools/scan_all_ble.mm)
   target_link_libraries(scan_ble PRIVATE
     "-framework CoreBluetooth"
