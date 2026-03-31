@@ -14,7 +14,7 @@ set(NDX_SOURCES
 )
 
 if(APPLE)
-  list(APPEND NDX_SOURCES src/ble/core_bluetooth_provider.mm)
+  list(APPEND NDX_SOURCES src/ble/macos/core_bluetooth_provider.mm)
 else()
   list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
 endif()
