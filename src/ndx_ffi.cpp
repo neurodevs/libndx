@@ -15,8 +15,8 @@ static std::unordered_map<int, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backend
 static int g_next_ble_id = 1;
 static int g_next_ftdi_id = 1;
 
-static BleFactory g_ble_factory = [](const std::string& device_id) {
-    return std::make_shared<ndx::BleBackend>(device_id, ndx::createBleProvider());
+static BleFactory g_ble_factory = [](const std::string& uuid) {
+    return std::make_shared<ndx::BleBackend>(uuid, ndx::createBleProvider());
 };
 
 static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
@@ -33,9 +33,9 @@ std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
     return (it != g_ftdi_backends.end()) ? it->second : nullptr;
 }
 
-static bool is_ble_registered(const std::string& device_id) {
+static bool is_ble_registered(const std::string& uuid) {
     for (const auto& [id, backend] : g_ble_backends) {
-        if (backend->device_id() == device_id) {
+        if (backend->device_id() == uuid) {
             return true;
         }
     }
@@ -59,18 +59,18 @@ extern "C" char* createBleBackend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
         }
 
-        std::string device_id = j["device_id"].get<std::string>();
+        std::string uuid = j["uuid"].get<std::string>();
 
-        if (!is_valid_uuid(device_id)) {
-            return to_ffi_result({{"status", 400}, {"error", "invalid device id"}});
+        if (!is_valid_uuid(uuid)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
         }
 
-        if (is_ble_registered(device_id)) {
-            return to_ffi_result({{"status", 400}, {"error", "device id already registered"}});
+        if (is_ble_registered(uuid)) {
+            return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
         }
 
         int id = g_next_ble_id++;
-        g_ble_backends[id] = g_ble_factory(device_id);
+        g_ble_backends[id] = g_ble_factory(uuid);
 
         return to_ffi_result({{"status", 200}, {"id", id}});
     } catch (const std::exception& e) {
@@ -165,8 +165,8 @@ void resetBleBackends() {
     g_ble_backends.clear();
     g_next_ble_id = 1;
 
-    g_ble_factory = [](const std::string& device_id) {
-        return std::make_shared<ndx::BleBackend>(device_id, ndx::createBleProvider());
+    g_ble_factory = [](const std::string& uuid) {
+        return std::make_shared<ndx::BleBackend>(uuid, ndx::createBleProvider());
     };
 }
 

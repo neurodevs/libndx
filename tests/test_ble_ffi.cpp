@@ -14,17 +14,17 @@ struct BleFfiFixture {
     setBleFactory([](const std::string& id) {
       return std::make_shared<ndx::BleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
     });
-    valid_device_id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
+    valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
   }
 
-  nlohmann::json createAndParse(std::string device_id) {
-    std::string config_json = "{\"device_id\":\"" + device_id + "\"}";
+  nlohmann::json createAndParse(std::string uuid) {
+    std::string config_json = "{\"uuid\":\"" + uuid + "\"}";
     const char* result = createBleBackend(config_json.c_str());
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json createAndParseValid() {
-    return createAndParse(valid_device_id);
+    return createAndParse(valid_uuid);
   }
 
   nlohmann::json start() {
@@ -42,7 +42,7 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  std::string valid_device_id;
+  std::string valid_uuid;
 
   void setThrowingFactory() {
     setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
@@ -80,28 +80,28 @@ TEST_CASE_METHOD(ValidBleFixture, "createBleBackend constructs BleBackend instan
     REQUIRE(backend != nullptr);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper device_id") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper uuid on backend") {
     int id = json["id"].get<int>();
     auto backend = getBleBackend(id);
     REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns 400 if device_id is already registered") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns 400 if uuid is already registered") {
     auto json = createAndParseValid();
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "device id already registered");
+    REQUIRE(json["error"] == "uuid already registered");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if device_id is not size 36") {
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if uuid is not size 36") {
     auto json = createAndParse("not-a-valid-uuid");
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "invalid device id");
+    REQUIRE(json["error"] == "invalid uuid");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if device_id does not contain 4 hyphens") {
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if uuid does not contain 4 hyphens") {
     auto json = createAndParse("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "invalid device id");
+    REQUIRE(json["error"] == "invalid uuid");
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if JSON is malformed") {
