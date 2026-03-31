@@ -8,7 +8,6 @@ namespace ndx { class CoreBluetoothProvider; }
 @interface CoreBluetoothDelegate : NSObject <CBCentralManagerDelegate, CBPeripheralDelegate>
 - (instancetype)initWithProvider:(ndx::CoreBluetoothProvider*)provider;
 @property (nonatomic, strong) CBPeripheral* peripheral;
-@property (nonatomic, strong) NSString* targetId;
 @end
 
 namespace ndx {
@@ -27,18 +26,49 @@ public:
 
   void scanAll(int duration_ms, ScanResultCallback on_complete) override {}
 
+  void scanForAdvertisement(const std::string& id, OnDataCallback on_advertisement_data) {
+    advertisement_target_id_ = [NSString stringWithUTF8String:id.c_str()];
+    on_advertisement_data_ = on_advertisement_data;
+    NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
+    [manager_ scanForPeripheralsWithServices:nil options:opts];
+  }
+
+  void onDiscoveredAdvertisement(CBPeripheral* peripheral, NSDictionary* advertisementData) {
+    if (!advertisement_target_id_) return;
+    if (![peripheral.identifier.UUIDString isEqualToString:advertisement_target_id_]) return;
+
+    uint64_t timestamp_ms = static_cast<uint64_t>(lsl_local_clock() * 1000.0);
+
+    NSData* mfgData = advertisementData[CBAdvertisementDataManufacturerDataKey];
+    if (!mfgData || mfgData.length < 4) return;
+
+    Packet packet;
+    packet.timestamp_ms = timestamp_ms;
+    const uint32_t* words = static_cast<const uint32_t*>(mfgData.bytes);
+    packet.data.assign(words, words + mfgData.length / sizeof(uint32_t));
+    on_advertisement_data_(packet);
+  }
+
   void scanForPeripheral(const std::string& id, OnDataCallback on_data) override {
-    delegate_.targetId = [NSString stringWithUTF8String:id.c_str()];
-    on_data_ = on_data;
-    [manager_ scanForPeripheralsWithServices:nil options:nil];
+    peripheral_target_id_ = [NSString stringWithUTF8String:id.c_str()];
+    on_peripheral_data_ = on_data;
+    [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
   void onDiscoveredPeripheral(CBPeripheral* peripheral) {
-    if ([peripheral.identifier.UUIDString isEqualToString:delegate_.targetId]) {
-      NSLog(@"discovered: %@ name: %@", peripheral.identifier.UUIDString, peripheral.name);
-      delegate_.peripheral = peripheral;
-      [manager_ stopScan];
-      [manager_ connectPeripheral:peripheral options:nil];
+    if (!peripheral_target_id_) return;
+    if (![peripheral.identifier.UUIDString isEqualToString:peripheral_target_id_]) return;
+
+    NSLog(@"discovered: %@ name: %@", peripheral.identifier.UUIDString, peripheral.name);
+    delegate_.peripheral = peripheral;
+    peripheral_target_id_ = nil;
+    [manager_ stopScan];
+    [manager_ connectPeripheral:peripheral options:nil];
+
+    // Restart scan if advertisement mode is still active
+    if (advertisement_target_id_) {
+      NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
+      [manager_ scanForPeripheralsWithServices:nil options:opts];
     }
   }
 
@@ -68,13 +98,24 @@ public:
     packet.timestamp_ms = timestamp_ms;
     const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
-    on_data_(packet);
+    on_peripheral_data_(packet);
   }
 
 private:
+  // Returns allowDuplicates:YES if advertisement mode is active, so both
+  // modes can coexist on the single CBCentralManager scan.
+  NSDictionary* advertisementScanOptions() {
+    if (advertisement_target_id_)
+      return @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
+    return nil;
+  }
+
   CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
-  OnDataCallback on_data_;
+  NSString* peripheral_target_id_ = nil;
+  NSString* advertisement_target_id_ = nil;
+  OnDataCallback on_peripheral_data_;
+  OnDataCallback on_advertisement_data_;
 };
 
 std::unique_ptr<BleProvider> createBleProvider() {
@@ -100,6 +141,7 @@ std::unique_ptr<BleProvider> createBleProvider() {
      advertisementData:(NSDictionary*)advertisementData
                   RSSI:(NSNumber*)RSSI {
   _provider->onDiscoveredPeripheral(peripheral);
+  _provider->onDiscoveredAdvertisement(peripheral, advertisementData);
 }
 
 - (void)centralManager:(CBCentralManager*)central
