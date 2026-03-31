@@ -14,11 +14,17 @@ struct BleFfiFixture {
     setBleFactory([](const std::string& id) {
       return std::make_shared<ndx::BleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
     });
+    valid_device_id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
   }
 
-  nlohmann::json createAndParse(const char* config_json) {
-    const char* result = createBleBackend(config_json);
+  nlohmann::json createAndParse(std::string device_id) {
+    std::string config_json = "{\"device_id\":\"" + device_id + "\"}";
+    const char* result = createBleBackend(config_json.c_str());
     return nlohmann::json::parse(result);
+  }
+
+  nlohmann::json createAndParseValid() {
+    return createAndParse(valid_device_id);
   }
 
   nlohmann::json start() {
@@ -36,6 +42,8 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
+  std::string valid_device_id;
+
   void setThrowingFactory() {
     setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
@@ -50,9 +58,8 @@ struct BleFfiFixture {
 };
 
 struct ValidBleFixture : BleFfiFixture {
-  nlohmann::json json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  nlohmann::json json = createAndParseValid();
 };
-
 
 TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
@@ -63,7 +70,7 @@ TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns id") {
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "createBleBackend autoincrements id") {
-    auto json2 = createAndParse("{\"mac_address\":\"XX:XX:XX:XX:XX:XX\"}");
+    auto json2 = createAndParse("YYYYYYYY-YYYY-YYYY-YYYY-YYYYYYYYYYYY");
     REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
 }
 
@@ -73,32 +80,32 @@ TEST_CASE_METHOD(ValidBleFixture, "createBleBackend constructs BleBackend instan
     REQUIRE(backend != nullptr);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper mac_address") {
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper device_id") {
     int id = json["id"].get<int>();
     auto backend = getBleBackend(id);
-    REQUIRE(backend->device_id() == "AA:BB:CC:DD:EE:FF");
+    REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns 400 if address is already registered") {
-    auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns 400 if device_id is already registered") {
+    auto json = createAndParseValid();
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "MAC address already registered");
+    REQUIRE(json["error"] == "device id already registered");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if address is not size 17") {
-    auto json = createAndParse("{\"mac_address\":\"not-mac-address\"}");
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if device_id is not size 36") {
+    auto json = createAndParse("not-a-valid-uuid");
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "invalid MAC address");
+    REQUIRE(json["error"] == "invalid device id");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if address does not contain 5 colons") {
-    auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE;FF\"}");
+TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if device_id does not contain 4 hyphens") {
+    auto json = createAndParse("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "invalid MAC address");
+    REQUIRE(json["error"] == "invalid device id");
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if JSON is malformed") {
-    auto json = createAndParse("{");
+    auto json = nlohmann::json::parse(createBleBackend("{"));
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "malformed JSON");
 }
@@ -165,14 +172,14 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected thro
   setBleFactory([](const std::string&) -> std::shared_ptr<ndx::BleBackend> {
     throw std::runtime_error("hardware fault");
   });
-  auto json = createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  auto json = createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw") {
   setThrowingFactory();
-  createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::start();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
@@ -180,7 +187,7 @@ TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw
 
 TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw") {
   setThrowingFactory();
-  createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   start();
   auto json = stop();
   REQUIRE(json["status"] == 500);
@@ -189,7 +196,7 @@ TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw"
 
 TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected throw") {
   setThrowingFactory();
-  createAndParse("{\"mac_address\":\"AA:BB:CC:DD:EE:FF\"}");
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = destroy();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);

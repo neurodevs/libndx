@@ -33,9 +33,9 @@ std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id) {
     return (it != g_ftdi_backends.end()) ? it->second : nullptr;
 }
 
-static bool is_ble_registered(const std::string& address) {
+static bool is_ble_registered(const std::string& device_id) {
     for (const auto& [id, backend] : g_ble_backends) {
-        if (backend->device_id() == address) {
+        if (backend->device_id() == device_id) {
             return true;
         }
     }
@@ -59,18 +59,18 @@ extern "C" char* createBleBackend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
         }
 
-        std::string address = j["mac_address"].get<std::string>();
+        std::string device_id = j["device_id"].get<std::string>();
 
-        if (!is_valid_mac(address)) {
-            return to_ffi_result({{"status", 400}, {"error", "invalid MAC address"}});
+        if (!is_valid_uuid(device_id)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid device id"}});
         }
 
-        if (is_ble_registered(address)) {
-            return to_ffi_result({{"status", 400}, {"error", "MAC address already registered"}});
+        if (is_ble_registered(device_id)) {
+            return to_ffi_result({{"status", 400}, {"error", "device id already registered"}});
         }
 
         int id = g_next_ble_id++;
-        g_ble_backends[id] = g_ble_factory(address);
+        g_ble_backends[id] = g_ble_factory(device_id);
 
         return to_ffi_result({{"status", 200}, {"id", id}});
     } catch (const std::exception& e) {

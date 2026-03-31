@@ -5,9 +5,9 @@
 #include <nlohmann/json.hpp>
 #include "ndx/acquisition_backend.hpp"
 
-static bool is_valid_mac(const std::string& address) {
-    const int num_colons = std::count(address.begin(), address.end(), ':');
-    return address.size() == 17 && num_colons == 5;
+static bool is_valid_uuid(const std::string& uuid) {
+    const int num_hyphens = std::count(uuid.begin(), uuid.end(), '-');
+    return uuid.size() == 36 && num_hyphens == 4;
 }
 
 static bool is_valid_serial(const std::string& serial_number) {
