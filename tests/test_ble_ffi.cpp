@@ -3,16 +3,22 @@
 #include "ndx/ndx_ffi.hpp"
 
 struct AlwaysOnBleProvider : ndx::BleProvider {
+  ndx::OnDataCallback on_data;
   bool isPoweredOn() override { return true; }
-  void scanForPeripheral(const std::string&, ndx::OnDataCallback) override {}
+  void scanForPeripheral(const std::string&, ndx::OnDataCallback cb) override { on_data = cb; }
   void scanAll(int, ndx::ScanResultCallback) override {}
+  void simulatePacket(const ndx::Packet& p) { if (on_data) on_data(p); }
 };
 
 struct BleFfiFixture {
+  AlwaysOnBleProvider* provider = nullptr;
+
   BleFfiFixture() {
     resetBleBackends();
-    setBleFactory([](const std::string& id) {
-      return std::make_shared<ndx::BleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
+    setBleFactory([this](const std::string& id) {
+      auto p = std::make_unique<AlwaysOnBleProvider>();
+      provider = p.get();
+      return std::make_shared<ndx::BleBackend>(id, std::move(p));
     });
     valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
   }
@@ -28,7 +34,7 @@ struct BleFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = startBleBackend("1");
+    const char* result = startBleBackend("1", [](const char* packet_json) {});
     return nlohmann::json::parse(result);
   }
 
@@ -200,4 +206,22 @@ TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected thr
   auto json = destroy();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packet fires") {
+  static ndx::Packet received;
+
+  auto on_data = [](const char* packet_json) {
+    auto j = nlohmann::json::parse(packet_json);
+    received = ndx::Packet{
+      j["data"].get<std::vector<uint32_t>>(),
+      j["timestamp_ms"].get<uint64_t>()
+    };
+  };
+
+  startBleBackend("1", on_data);
+  provider->simulatePacket({{42, 43}, 1000});
+
+  REQUIRE(received.data == std::vector<uint32_t>{42, 43});
+  REQUIRE(received.timestamp_ms == 1000);
 }

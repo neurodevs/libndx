@@ -19,10 +19,13 @@ static char* to_ffi_result(const nlohmann::json& j) {
 }
 
 template<typename GetFn>
-static char* startBackend(const char* id_str, GetFn getBackend) {
+static char* startBackend(const char* id_str, GetFn getBackend, void (*on_data)(const char*)) {
     int id = std::stoi(id_str);
     auto backend = getBackend(id);
-    if (backend) backend->start([](const ndx::Packet&) {});
+    if (backend) backend->start([on_data](const ndx::Packet& p) {
+        auto j = nlohmann::json{{"data", p.data}, {"timestamp_ms", p.timestamp_ms}};
+        on_data(j.dump().c_str());
+    });
     return to_ffi_result({{"status", 200}, {"id", id_str}});
 }
 

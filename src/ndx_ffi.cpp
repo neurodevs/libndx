@@ -78,9 +78,9 @@ extern "C" char* createBleBackend(const char* config_json) {
     }
 }
 
-extern "C" char* startBleBackend(const char* id_str) {
+extern "C" char* startBleBackend(const char* id_str, void (*on_data)(const char* packet_json)) {
     try {
-        return startBackend(id_str, getBleBackend); 
+        return startBackend(id_str, getBleBackend, on_data);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
@@ -132,9 +132,9 @@ extern "C" char* createFtdiBackend(const char* config_json) {
     }
 }
 
-extern "C" char* startFtdiBackend(const char* id_str) {
+extern "C" char* startFtdiBackend(const char* id_str, void (*on_data)(const char* packet_json)) {
     try {
-        return startBackend(id_str, getFtdiBackend); 
+        return startBackend(id_str, getFtdiBackend, on_data);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

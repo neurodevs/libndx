@@ -13,7 +13,7 @@ struct FtdiFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = startFtdiBackend("1");
+    const char* result = startFtdiBackend("1", [](const char*) {});
     return nlohmann::json::parse(result);
   }
 
