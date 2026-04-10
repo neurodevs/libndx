@@ -19,7 +19,7 @@ else()
   list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
 endif()
 
-add_library(ndx STATIC ${NDX_SOURCES})
+add_library(ndx SHARED ${NDX_SOURCES})
 
 target_include_directories(ndx PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
