@@ -120,7 +120,7 @@ extern "C" char* createFtdiBackend(const char* config_json) {
         }
 
         if (is_ftdi_registered(serial_number)) {
-            return to_ffi_result({{"status", 400}, {"error", "Serial number already registered"}});
+            return to_ffi_result({{"status", 400}, {"error", "serial number already registered"}});
         }
 
         int id = g_next_ftdi_id++;

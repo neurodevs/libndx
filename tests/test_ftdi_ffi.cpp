@@ -72,7 +72,7 @@ TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend sets proper serial_number"
 TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend returns 400 if serial number is already registered") {
     auto json = createAndParse("{\"serial_number\":\"ABCD1234\"}");
     REQUIRE(json["status"] == 400);
-    REQUIRE(json["error"] == "Serial number already registered");
+    REQUIRE(json["error"] == "serial number already registered");
 }
 
 TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 400 if serial number is not size 8") {
