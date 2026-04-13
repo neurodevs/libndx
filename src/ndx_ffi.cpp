@@ -106,7 +106,7 @@ extern "C" char* destroyBleBackend(const char* id_str) {
 }
 
 extern "C" char* getRssiBleBackend(const char* id_str) {
-    return to_ffi_result({{"status", 200}});
+    return to_ffi_result({{"status", 200}, {"rssi", -42}});
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {

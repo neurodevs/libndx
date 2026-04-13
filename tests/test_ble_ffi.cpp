@@ -48,6 +48,11 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
+  nlohmann::json getRssi() {
+    const char* result = getRssiBleBackend("1");
+    return nlohmann::json::parse(result);
+  }
+
   std::string valid_uuid;
 
   void setThrowingFactory() {
@@ -227,6 +232,11 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packe
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns ok") {
-  auto json = nlohmann::json::parse(getRssiBleBackend("1"));
+  auto json = getRssi();
   REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns rssi value") {
+  auto json = getRssi();
+  REQUIRE(json.contains("rssi"));
 }
