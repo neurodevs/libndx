@@ -7,6 +7,7 @@ struct FakeBleProvider : ndx::BleProvider {
   std::vector<ndx::PeripheralInfo> scan_all_results;
 
   bool isPoweredOn() override { return powered_on; }
+  int getRssi() override { return 0; }
   void scanForPeripheral(const std::string& id, ndx::OnDataCallback) override {
     scan_requested_for = id;
   }

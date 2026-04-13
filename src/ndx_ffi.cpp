@@ -106,7 +106,14 @@ extern "C" char* destroyBleBackend(const char* id_str) {
 }
 
 extern "C" char* getRssiBleBackend(const char* id_str) {
-    return to_ffi_result({{"status", 200}, {"rssi", -42}});
+    try {
+        int id = std::stoi(id_str);
+        auto backend = getBleBackend(id);
+        int rssi = backend->getRssi();
+        return to_ffi_result({{"status", 200}, {"rssi", rssi}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
 }
 
 extern "C" char* createFtdiBackend(const char* config_json) {

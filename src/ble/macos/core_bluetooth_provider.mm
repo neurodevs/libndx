@@ -55,6 +55,10 @@ public:
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
+  int getRssi() override { return rssi_; }
+
+  void onRssi(int rssi) { rssi_ = rssi; }
+
   void onDiscoveredPeripheral(CBPeripheral* peripheral) {
     if (!peripheral_target_id_) return;
     if (![peripheral.identifier.UUIDString isEqualToString:peripheral_target_id_]) return;
@@ -116,6 +120,7 @@ private:
   NSString* advertisement_target_id_ = nil;
   OnDataCallback on_peripheral_data_;
   OnDataCallback on_advertisement_data_;
+  int rssi_ = 0;
 };
 
 std::unique_ptr<BleProvider> createBleProvider() {
@@ -140,6 +145,7 @@ std::unique_ptr<BleProvider> createBleProvider() {
  didDiscoverPeripheral:(CBPeripheral*)peripheral
      advertisementData:(NSDictionary*)advertisementData
                   RSSI:(NSNumber*)RSSI {
+  _provider->onRssi(RSSI.intValue);
   _provider->onDiscoveredPeripheral(peripheral);
   _provider->onDiscoveredAdvertisement(peripheral, advertisementData);
 }

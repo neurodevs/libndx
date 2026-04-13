@@ -8,6 +8,8 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void scanForPeripheral(const std::string&, ndx::OnDataCallback cb) override { on_data = cb; }
   void scanAll(int, ndx::ScanResultCallback) override {}
   void simulatePacket(const ndx::Packet& p) { if (on_data) on_data(p); }
+  int rssi = 0;
+  int getRssi() override { return rssi; }
 };
 
 struct BleFfiFixture {
@@ -236,7 +238,8 @@ TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns ok") {
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns rssi value") {
+TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns rssi from provider") {
+  provider->rssi = -75;
   auto json = getRssi();
-  REQUIRE(json.contains("rssi"));
+  REQUIRE(json["rssi"] == -75);
 }
