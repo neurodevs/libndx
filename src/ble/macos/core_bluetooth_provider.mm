@@ -55,7 +55,11 @@ public:
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
-  int getRssi() override { return rssi_; }
+  int getRssi() override {
+    if (delegate_.peripheral)
+      [delegate_.peripheral readRSSI];
+    return rssi_;
+  }
 
   void onRssi(int rssi) { rssi_ = rssi; }
 
@@ -170,6 +174,13 @@ didDiscoverCharacteristicsForService:(CBService*)service
 didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic
              error:(NSError*)error {
   _provider->onCharacteristicValue(characteristic);
+}
+
+- (void)peripheral:(CBPeripheral*)peripheral
+      didReadRSSI:(NSNumber*)RSSI
+            error:(NSError*)error {
+  if (!error)
+    _provider->onRssi(RSSI.intValue);
 }
 
 @end
