@@ -61,9 +61,10 @@ struct BleFfiFixture {
     setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
-        void start(ndx::OnDataCallback) override { throw std::runtime_error("hardware fault"); }
-        void stop() override { throw std::runtime_error("hardware fault"); }
-        void destroy() override { throw std::runtime_error("hardware fault"); }
+        void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
+        void stop() override { throw std::runtime_error("internal server error"); }
+        void destroy() override { throw std::runtime_error("internal server error"); }
+        int getRssi() override { throw std::runtime_error("internal server error"); }
       };
       return std::make_shared<ThrowingBleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
     });
@@ -183,11 +184,11 @@ TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend removes backend from regist
 
 TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected throw") {
   setBleFactory([](const std::string&) -> std::shared_ptr<ndx::BleBackend> {
-    throw std::runtime_error("hardware fault");
+    throw std::runtime_error("internal server error");
   });
   auto json = createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw") {
@@ -195,7 +196,7 @@ TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw
   createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::start();
   REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw") {
@@ -204,7 +205,7 @@ TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw"
   start();
   auto json = stop();
   REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected throw") {
@@ -212,7 +213,15 @@ TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected thr
   createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = destroy();
   REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "getRssiBleBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  auto json = getRssi();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packet fires") {

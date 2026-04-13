@@ -20,7 +20,7 @@ void BleBackend::scanAll(int duration_ms, ScanResultCallback on_complete) {
   provider_->scanAll(duration_ms, on_complete);
 }
 
-int BleBackend::getRssi() const {
+int BleBackend::getRssi() {
   return provider_->getRssi();
 }
 
