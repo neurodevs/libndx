@@ -114,3 +114,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered perip
   REQUIRE(results[1].name == "Muse-5678");
 }
 
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets isIntentionalDisconnect false") {
+  REQUIRE_FALSE(backend.isIntentionalDisconnect());
+}
