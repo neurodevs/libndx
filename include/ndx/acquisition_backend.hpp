@@ -23,17 +23,17 @@ public:
   virtual void destroy();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }
-  bool isIntentionalDisconnect() const { return false; }
-
-
-protected:
   std::string device_id_;
-  bool is_running_ = false;
+  
+  protected:
   virtual std::string name() const = 0;
   void fireCallback(const Packet& p);
-
-private:
+  bool isIntentionalDisconnect() const { return intentional_disconnect_; }
+  
+  private:
   OnDataCallback callback_;
+  bool is_running_ = false;
+  bool intentional_disconnect_ = false;
 };
 
 }

@@ -19,6 +19,7 @@ struct FakeBleProvider : ndx::BleProvider {
 struct TestableBleBackend : ndx::BleBackend {
   using ndx::BleBackend::BleBackend;
   void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
+  using ndx::AcquisitionBackend::isIntentionalDisconnect;
 };
 
 struct BleBackendFixture {
@@ -116,4 +117,9 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered perip
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets isIntentionalDisconnect false") {
   REQUIRE_FALSE(backend.isIntentionalDisconnect());
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets isIntentionalDisconnect true") {
+  backend.destroy();
+  REQUIRE(backend.isIntentionalDisconnect());
 }
