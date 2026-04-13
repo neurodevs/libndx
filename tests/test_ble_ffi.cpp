@@ -225,3 +225,8 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packe
   REQUIRE(received.data == std::vector<uint32_t>{42, 43});
   REQUIRE(received.timestamp_ms == 1000);
 }
+
+TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns ok") {
+  auto json = nlohmann::json::parse(getRssiBleBackend("1"));
+  REQUIRE(json["status"] == 200);
+}

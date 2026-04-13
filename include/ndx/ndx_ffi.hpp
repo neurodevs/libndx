@@ -12,6 +12,7 @@ char* createBleBackend(const char* config_json);
 char* startBleBackend(const char* id, void (*on_data)(const char* packet_json));
 char* stopBleBackend(const char* id);
 char* destroyBleBackend(const char* id);
+char* getRssiBleBackend(const char* id);
 
 char* createFtdiBackend(const char* config_json);
 char* startFtdiBackend(const char* id, void (*on_data)(const char* packet_json));
