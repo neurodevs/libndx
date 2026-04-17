@@ -1,6 +1,7 @@
 #pragma once
-#include "acquisition_backend.hpp"
 #include <string>
+
+#include "ndx/acquisition_backend.hpp"
 
 namespace ndx {
 

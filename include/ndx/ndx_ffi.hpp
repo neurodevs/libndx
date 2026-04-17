@@ -27,8 +27,8 @@ using BleFactory = std::function<std::shared_ptr<ndx::BleBackend>(const std::str
 using FtdiFactory = std::function<std::shared_ptr<ndx::FtdiBackend>(const std::string&)>;
 
 #ifdef NDX_TESTING
-std::shared_ptr<ndx::BleBackend> getBleBackend(int id);
-std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(int id);
+std::shared_ptr<ndx::BleBackend> getBleBackend(const std::string& device_uuid);
+std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(const std::string& serial_number);
 void resetBleBackends();
 void resetFtdiBackends();
 void setBleFactory(BleFactory factory);

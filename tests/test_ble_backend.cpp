@@ -8,8 +8,8 @@ struct FakeBleProvider : ndx::BleProvider {
 
   bool isPoweredOn() override { return powered_on; }
   int getRssi() override { return 0; }
-  void scanForPeripheral(const std::string& id, ndx::OnDataCallback) override {
-    scan_requested_for = id;
+  void scanForPeripheral(const std::string& uuid, ndx::OnDataCallback) override {
+    scan_requested_for = uuid;
   }
   void scanAll(int duration_ms, ndx::ScanResultCallback cb) override {
     cb(scan_all_results);
@@ -104,14 +104,15 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered perip
   };
 
   std::vector<ndx::PeripheralInfo> results;
+
   backend.scanAll(5000, [&](const std::vector<ndx::PeripheralInfo>& r) {
     results = r;
   });
 
   REQUIRE(results.size() == 2);
-  REQUIRE(results[0].id == "AA:BB:CC:DD:EE:FF");
+  REQUIRE(results[0].uuid == "AA:BB:CC:DD:EE:FF");
   REQUIRE(results[0].name == "Muse-1234");
-  REQUIRE(results[1].id == "11:22:33:44:55:66");
+  REQUIRE(results[1].uuid == "11:22:33:44:55:66");
   REQUIRE(results[1].name == "Muse-5678");
 }
 

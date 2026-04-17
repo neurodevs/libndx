@@ -17,10 +17,10 @@ struct BleFfiFixture {
 
   BleFfiFixture() {
     resetBleBackends();
-    setBleFactory([this](const std::string& id) {
+    setBleFactory([this](const std::string& uuid) {
       auto p = std::make_unique<AlwaysOnBleProvider>();
       provider = p.get();
-      return std::make_shared<ndx::BleBackend>(id, std::move(p));
+      return std::make_shared<ndx::BleBackend>(uuid, std::move(p));
     });
     valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
   }
@@ -36,7 +36,7 @@ struct BleFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = startBleBackend("1", [](const char* packet_json) {});
+    const char* result = startBleBackend(valid_uuid.c_str(), [](const char* packet_json) {});
     return nlohmann::json::parse(result);
   }
 
@@ -46,24 +46,24 @@ struct BleFfiFixture {
   }
 
   nlohmann::json stop() {
-    const char* result = stopBleBackend("1");
+    const char* result = stopBleBackend(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json destroy() {
-    const char* result = destroyBleBackend("1");
+    const char* result = destroyBleBackend(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json getRssi() {
-    const char* result = getRssiBleBackend("1");
+    const char* result = getRssiBleBackend(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
   std::string valid_uuid;
 
   void setThrowingFactory() {
-    setBleFactory([](const std::string& id) -> std::shared_ptr<ndx::BleBackend> {
+    setBleFactory([](const std::string& uuid) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
         void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
@@ -71,7 +71,7 @@ struct BleFfiFixture {
         void destroy() override { throw std::runtime_error("internal server error"); }
         int getRssi() override { throw std::runtime_error("internal server error"); }
       };
-      return std::make_shared<ThrowingBleBackend>(id, std::make_unique<AlwaysOnBleProvider>());
+      return std::make_shared<ThrowingBleBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
   }
 };
@@ -84,24 +84,13 @@ TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend returns id") {
-    REQUIRE(json.contains("id"));
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "createBleBackend autoincrements id") {
-    auto json2 = createAndParse("YYYYYYYY-YYYY-YYYY-YYYY-YYYYYYYYYYYY");
-    REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
-}
-
 TEST_CASE_METHOD(ValidBleFixture, "createBleBackend constructs BleBackend instance") {
-    int id = json["id"].get<int>();
-    auto backend = getBleBackend(id);
+    auto backend = getBleBackend(valid_uuid);
     REQUIRE(backend != nullptr);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "createBleBackend sets proper uuid on backend") {
-    int id = json["id"].get<int>();
-    auto backend = getBleBackend(id);
+    auto backend = getBleBackend(valid_uuid);
     REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
@@ -134,14 +123,9 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns id") {
-    auto json = BleFfiFixture::start();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
-    auto json = BleFfiFixture::start();
-    auto backend = getBleBackend(1);
+    BleFfiFixture::start();
+    auto backend = getBleBackend(valid_uuid);
     REQUIRE(backend->is_running());
 }
 
@@ -156,16 +140,10 @@ TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns id") {
-    BleFfiFixture::start();
-    auto json = BleFfiFixture::stop();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend calls stop on backend") {
     BleFfiFixture::start();
     BleFfiFixture::stop();
-    auto backend = getBleBackend(1);
+    auto backend = getBleBackend(valid_uuid);
     REQUIRE(!backend->is_running());
 }
 
@@ -174,21 +152,16 @@ TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend returns id") {
-    BleFfiFixture::destroy();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend calls stop on backend if running") {
     BleFfiFixture::start();
-    auto backend = getBleBackend(1);
+    auto backend = getBleBackend(valid_uuid);
     BleFfiFixture::destroy();
     REQUIRE(!backend->is_running());
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend removes backend from registry") {
     BleFfiFixture::destroy();
-    auto backend = getBleBackend(1);
+    auto backend = getBleBackend(valid_uuid);
     REQUIRE(backend == nullptr);
 }
 
@@ -245,7 +218,7 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packe
     };
   };
 
-  startBleBackend("1", on_data);
+  startBleBackend(valid_uuid.c_str(), on_data);
   provider->simulatePacket({{42, 43}, 1000});
 
   REQUIRE(received.data == std::vector<uint32_t>{42, 43});

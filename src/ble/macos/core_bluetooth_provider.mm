@@ -26,8 +26,8 @@ public:
 
   void scanAll(int duration_ms, ScanResultCallback on_complete) override {}
 
-  void scanForAdvertisement(const std::string& id, OnDataCallback on_advertisement_data) {
-    advertisement_target_id_ = [NSString stringWithUTF8String:id.c_str()];
+  void scanForAdvertisement(const std::string& uuid, OnDataCallback on_advertisement_data) {
+    advertisement_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     on_advertisement_data_ = on_advertisement_data;
     NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
     [manager_ scanForPeripheralsWithServices:nil options:opts];
@@ -49,8 +49,8 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scanForPeripheral(const std::string& id, OnDataCallback on_data) override {
-    peripheral_target_id_ = [NSString stringWithUTF8String:id.c_str()];
+  void scanForPeripheral(const std::string& uuid, OnDataCallback on_data) override {
+    peripheral_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     on_peripheral_data_ = on_data;
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }

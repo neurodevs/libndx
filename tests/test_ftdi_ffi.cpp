@@ -3,8 +3,11 @@
 #include "ndx/ndx_ffi.hpp"
 
 struct FtdiFfiFixture {
+  std::string valid_serial;
+
   FtdiFfiFixture() {
     resetFtdiBackends();
+    valid_serial = "ABCD1234";
   }
 
   nlohmann::json createAndParse(const char* config_json) {
@@ -13,29 +16,29 @@ struct FtdiFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = startFtdiBackend("1", [](const char*) {});
+    const char* result = startFtdiBackend(valid_serial.c_str(), [](const char*) {});
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json stop() {
-    const char* result = stopFtdiBackend("1");
+    const char* result = stopFtdiBackend(valid_serial.c_str());
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json destroy() {
-    const char* result = destroyFtdiBackend("1");
+    const char* result = destroyFtdiBackend(valid_serial.c_str());
     return nlohmann::json::parse(result);
-}
+  }
 
   void setThrowingFactory() {
-    setFtdiFactory([](const std::string& id) -> std::shared_ptr<ndx::FtdiBackend> {
+    setFtdiFactory([](const std::string& uuid) -> std::shared_ptr<ndx::FtdiBackend> {
       struct ThrowingFtdiBackend : ndx::FtdiBackend {
         using ndx::FtdiBackend::FtdiBackend;
         void start(ndx::OnDataCallback) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
         void destroy() override { throw std::runtime_error("hardware fault"); }
       };
-      return std::make_shared<ThrowingFtdiBackend>(id);
+      return std::make_shared<ThrowingFtdiBackend>(uuid);
     });
   }
 };
@@ -48,24 +51,13 @@ TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend returns id") {
-    REQUIRE(json.contains("id"));
-}
-
-TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend autoincrements id") {
-    auto json2 = createAndParse("{\"serial_number\":\"EFGH5678\"}");
-    REQUIRE(json2["id"] == (json["id"].get<int>() + 1));
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend constructs FtdiBackend instance") {
-    int id = json["id"].get<int>();
-    auto backend = getFtdiBackend(id);
+    auto backend = getFtdiBackend(valid_serial);
     REQUIRE(backend != nullptr);
 }
 
 TEST_CASE_METHOD(ValidFtdiFixture, "createFtdiBackend sets proper serial_number") {
-    int id = json["id"].get<int>();
-    auto backend = getFtdiBackend(id);
+    auto backend = getFtdiBackend(valid_serial);
     REQUIRE(backend->device_id() == "ABCD1234");
 }
 
@@ -88,18 +80,13 @@ TEST_CASE_METHOD(FtdiFfiFixture, "createFtdiBackend returns 400 if JSON is malfo
 }
 
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns ok") {
-    auto json = FtdiFfiFixture::start();    
+    auto json = FtdiFfiFixture::start();
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend returns id") {
-    auto json = FtdiFfiFixture::start();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "startFtdiBackend calls start on backend") {
-    auto json = FtdiFfiFixture::start();
-    auto backend = getFtdiBackend(1);
+    FtdiFfiFixture::start();
+    auto backend = getFtdiBackend(valid_serial);
     REQUIRE(backend->is_running());
 }
 
@@ -109,16 +96,10 @@ TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend returns id") {
-    FtdiFfiFixture::start();
-    auto json = FtdiFfiFixture::stop();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "stopFtdiBackend calls stop on backend") {
     FtdiFfiFixture::start();
     FtdiFfiFixture::stop();
-    auto backend = getFtdiBackend(1);
+    auto backend = getFtdiBackend(valid_serial);
     REQUIRE(!backend->is_running());
 }
 
@@ -127,22 +108,16 @@ TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend returns id") {
-    FtdiFfiFixture::destroy();
-    REQUIRE(json.contains("id"));
-}
-
 TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend calls stop on backend") {
     FtdiFfiFixture::start();
-    auto backend = getFtdiBackend(1);
+    auto backend = getFtdiBackend(valid_serial);
     FtdiFfiFixture::destroy();
     REQUIRE(!backend->is_running());
 }
 
-
 TEST_CASE_METHOD(ValidFtdiFixture, "destroyFtdiBackend removes backend from registry") {
     FtdiFfiFixture::destroy();
-    auto backend = getFtdiBackend(1);
+    auto backend = getFtdiBackend(valid_serial);
     REQUIRE(backend == nullptr);
 }
 

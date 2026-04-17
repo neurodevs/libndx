@@ -1,14 +1,15 @@
 #pragma once
-#include "acquisition_backend.hpp"
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "ndx/acquisition_backend.hpp"
+
 namespace ndx {
 
 struct PeripheralInfo {
-  std::string id;
+  std::string uuid;
   std::string name;
 };
 
@@ -18,7 +19,7 @@ class BleProvider {
 public:
   virtual ~BleProvider() = default;
   virtual bool isPoweredOn() = 0;
-  virtual void scanForPeripheral(const std::string& id, OnDataCallback on_data) = 0;
+  virtual void scanForPeripheral(const std::string& uuid, OnDataCallback on_data) = 0;
   virtual void scanAll(int duration_ms, ScanResultCallback on_complete) = 0;
   virtual int getRssi() = 0;
 };
