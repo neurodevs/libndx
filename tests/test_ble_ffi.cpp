@@ -40,6 +40,11 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
+  nlohmann::json write() {
+    const char* result = writeBleCharacteristic("device-uuid", "char-uuid", "char-value");
+    return nlohmann::json::parse(result);
+  }
+
   nlohmann::json stop() {
     const char* result = stopBleBackend("1");
     return nlohmann::json::parse(result);
@@ -138,6 +143,11 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
     auto json = BleFfiFixture::start();
     auto backend = getBleBackend(1);
     REQUIRE(backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "writeBleCharacteristic returns ok") {
+    auto json = BleFfiFixture::write();
+    REQUIRE(json["status"] == 200);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {

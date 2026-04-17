@@ -86,6 +86,10 @@ extern "C" char* startBleBackend(const char* id_str, void (*on_data)(const char*
     }
 }
 
+extern "C" char* writeBleCharacteristic(const char* device_uuid, const char* char_uuid, const char* value) {
+    return to_ffi_result({{"status", 200}});
+}
+
 extern "C" char* stopBleBackend(const char* id_str)  {
     try {
         return stopBackend(id_str, getBleBackend); 
