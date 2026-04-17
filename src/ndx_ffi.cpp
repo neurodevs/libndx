@@ -5,10 +5,10 @@
 #include <nlohmann/json.hpp>
 
 #include "ndx/ndx_ffi.hpp"
+#include "ndx/ndx_ffi_impl.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ble_provider.hpp"
 #include "ndx/ftdi_backend.hpp"
-#include "ndx/ndx_ffi_impl.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
 static std::unordered_map<std::string, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
