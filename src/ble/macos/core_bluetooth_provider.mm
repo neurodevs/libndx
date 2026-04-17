@@ -55,7 +55,7 @@ public:
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
-  int getRssi() override {
+  int readRssi() override {
     if (delegate_.peripheral)
       [delegate_.peripheral readRSSI];
     return rssi_;

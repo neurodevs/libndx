@@ -9,7 +9,7 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void scanAll(int, ndx::ScanResultCallback) override {}
   void simulatePacket(const ndx::Packet& p) { if (on_data) on_data(p); }
   int rssi = 0;
-  int getRssi() override { return rssi; }
+  int readRssi() override { return rssi; }
 };
 
 struct BleFfiFixture {
@@ -55,8 +55,8 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json getRssi() {
-    const char* result = getRssiBleBackend(valid_uuid.c_str());
+  nlohmann::json readRssi() {
+    const char* result = readBleRssi(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
@@ -69,7 +69,7 @@ struct BleFfiFixture {
         void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         void destroy() override { throw std::runtime_error("internal server error"); }
-        int getRssi() override { throw std::runtime_error("internal server error"); }
+        int readRssi() override { throw std::runtime_error("internal server error"); }
       };
       return std::make_shared<ThrowingBleBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
@@ -118,53 +118,6 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 400 if JSON is malform
     REQUIRE(json["error"] == "malformed JSON");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
-    auto json = BleFfiFixture::start();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
-    BleFfiFixture::start();
-    auto backend = getBleBackend(valid_uuid);
-    REQUIRE(backend->is_running());
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "writeBleCharacteristic returns ok") {
-    auto json = BleFfiFixture::write();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {
-    BleFfiFixture::start();
-    auto json = BleFfiFixture::stop();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend calls stop on backend") {
-    BleFfiFixture::start();
-    BleFfiFixture::stop();
-    auto backend = getBleBackend(valid_uuid);
-    REQUIRE(!backend->is_running());
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend returns ok") {
-    BleFfiFixture::destroy();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend calls stop on backend if running") {
-    BleFfiFixture::start();
-    auto backend = getBleBackend(valid_uuid);
-    BleFfiFixture::destroy();
-    REQUIRE(!backend->is_running());
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend removes backend from registry") {
-    BleFfiFixture::destroy();
-    auto backend = getBleBackend(valid_uuid);
-    REQUIRE(backend == nullptr);
-}
-
 TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected throw") {
   setBleFactory([](const std::string&) -> std::shared_ptr<ndx::BleBackend> {
     throw std::runtime_error("internal server error");
@@ -174,37 +127,15 @@ TEST_CASE_METHOD(BleFfiFixture, "createBleBackend returns 500 on unexpected thro
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw") {
-  setThrowingFactory();
-  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  auto json = BleFfiFixture::start();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend returns ok") {
+    auto json = BleFfiFixture::start();
+    REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw") {
-  setThrowingFactory();
-  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  start();
-  auto json = stop();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
-}
-
-TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected throw") {
-  setThrowingFactory();
-  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  auto json = destroy();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
-}
-
-TEST_CASE_METHOD(BleFfiFixture, "getRssiBleBackend returns 500 on unexpected throw") {
-  setThrowingFactory();
-  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  auto json = getRssi();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+TEST_CASE_METHOD(ValidBleFixture, "startBleBackend calls start on backend") {
+    BleFfiFixture::start();
+    auto backend = getBleBackend(valid_uuid);
+    REQUIRE(backend->is_running());
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packet fires") {
@@ -225,13 +156,83 @@ TEST_CASE_METHOD(ValidBleFixture, "startBleBackend invokes C callback when packe
   REQUIRE(received.timestamp_ms == 1000);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns ok") {
-  auto json = getRssi();
+TEST_CASE_METHOD(BleFfiFixture, "startBleBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  auto json = BleFfiFixture::start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "writeBleCharacteristic returns ok") {
+    auto json = BleFfiFixture::write();
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "readBleRssi returns ok") {
+  auto json = readRssi();
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "getRssiBleBackend returns rssi from provider") {
+TEST_CASE_METHOD(ValidBleFixture, "readBleRssi returns rssi from provider") {
   provider->rssi = -75;
-  auto json = getRssi();
+  auto json = readRssi();
   REQUIRE(json["rssi"] == -75);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "readBleRssi returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  auto json = readRssi();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend returns ok") {
+    BleFfiFixture::start();
+    auto json = BleFfiFixture::stop();
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stopBleBackend calls stop on backend") {
+    BleFfiFixture::start();
+    BleFfiFixture::stop();
+    auto backend = getBleBackend(valid_uuid);
+    REQUIRE(!backend->is_running());
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "stopBleBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  start();
+  auto json = stop();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+
+TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend returns ok") {
+    BleFfiFixture::destroy();
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend calls stop on backend if running") {
+    BleFfiFixture::start();
+    auto backend = getBleBackend(valid_uuid);
+    BleFfiFixture::destroy();
+    REQUIRE(!backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "destroyBleBackend removes backend from registry") {
+    BleFfiFixture::destroy();
+    auto backend = getBleBackend(valid_uuid);
+    REQUIRE(backend == nullptr);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "destroyBleBackend returns 500 on unexpected throw") {
+  setThrowingFactory();
+  createAndParse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  auto json = destroy();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }

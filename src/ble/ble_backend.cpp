@@ -20,8 +20,8 @@ void BleBackend::scanAll(int duration_ms, ScanResultCallback on_complete) {
   provider_->scanAll(duration_ms, on_complete);
 }
 
-int BleBackend::getRssi() {
-  return provider_->getRssi();
+int BleBackend::readRssi() {
+  return provider_->readRssi();
 }
 
 }

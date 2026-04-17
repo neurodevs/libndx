@@ -21,7 +21,7 @@ public:
   virtual bool isPoweredOn() = 0;
   virtual void scanForPeripheral(const std::string& uuid, OnDataCallback on_data) = 0;
   virtual void scanAll(int duration_ms, ScanResultCallback on_complete) = 0;
-  virtual int getRssi() = 0;
+  virtual int readRssi() = 0;
 };
 
 std::unique_ptr<BleProvider> createBleProvider();

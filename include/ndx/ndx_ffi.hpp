@@ -12,7 +12,7 @@ extern "C" {
 char* createBleBackend(const char* device_uuid);
 char* startBleBackend(const char* device_uuid, void (*on_data)(const char* packet_json));
 char* writeBleCharacteristic(const char* device_uuid, const char* char_uuid, const char* value);
-char* getRssiBleBackend(const char* device_uuid);
+char* readBleRssi(const char* device_uuid);
 char* stopBleBackend(const char* device_uuid);
 char* destroyBleBackend(const char* device_uuid);
 

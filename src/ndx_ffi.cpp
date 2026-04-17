@@ -76,6 +76,16 @@ extern "C" char* writeBleCharacteristic(const char* device_uuid, const char* cha
     return to_ffi_result({{"status", 200}});
 }
 
+extern "C" char* readBleRssi(const char* device_uuid) {
+    try {
+        auto backend = getBleBackend(device_uuid);
+        int rssi = backend->readRssi();
+        return to_ffi_result({{"status", 200}, {"rssi", rssi}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
+}
+
 extern "C" char* stopBleBackend(const char* device_uuid)  {
     try {
         return stopBackend(device_uuid, getBleBackend); 
@@ -89,16 +99,6 @@ extern "C" char* destroyBleBackend(const char* device_uuid) {
         char* result = destroyBackend(device_uuid, getBleBackend);
         g_ble_backends.erase(device_uuid);
         return result;
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
-}
-
-extern "C" char* getRssiBleBackend(const char* device_uuid) {
-    try {
-        auto backend = getBleBackend(device_uuid);
-        int rssi = backend->getRssi();
-        return to_ffi_result({{"status", 200}, {"rssi", rssi}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
