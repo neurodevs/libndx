@@ -13,7 +13,7 @@ void AcquisitionBackend::start(std::function<void(const Packet&)> callback) {
   is_running_ = true;
 }
 
-void AcquisitionBackend::fireCallback(const Packet& p) {
+void AcquisitionBackend::fire_callback(const Packet& p) {
   callback_(p);
 }
 

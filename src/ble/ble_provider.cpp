@@ -4,11 +4,11 @@ namespace ndx {
 
 class BleProviderImpl : public BleProvider {
 public:
-  bool isPoweredOn() override { return false; }
-  void scanForPeripheral(const std::string&, ndx::OnDataCallback) override {}
+  bool is_powered_on() override { return false; }
+  void scan_for_peripheral(const std::string&, ndx::OnDataCallback) override {}
 };
 
-std::unique_ptr<BleProvider> createBleProvider() {
+std::unique_ptr<BleProvider> create_ble_provider() {
   return std::make_unique<BleProviderImpl>();
 }
 

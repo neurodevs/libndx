@@ -27,8 +27,8 @@ public:
   
   protected:
   virtual std::string name() const = 0;
-  void fireCallback(const Packet& p);
-  bool isIntentionalDisconnect() const { return intentional_disconnect_; }
+  void fire_callback(const Packet& p);
+  bool is_intentional_disconnect() const { return intentional_disconnect_; }
   
   private:
   OnDataCallback callback_;

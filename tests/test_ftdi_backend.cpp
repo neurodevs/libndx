@@ -3,7 +3,7 @@
 
 struct TestableFtdiBackend : ndx::FtdiBackend {
   using ndx::FtdiBackend::FtdiBackend;
-  void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
+  void simulate_packet(const ndx::Packet& p) { fire_callback(p); }
 };
 
 struct FtdiBackendFixture {
@@ -36,7 +36,7 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend invokes callback when packet r
   backend.start([&](const ndx::Packet& p) {
       called = true;
   });
-  backend.simulatePacket(ndx::Packet{});
+  backend.simulate_packet(ndx::Packet{});
   REQUIRE(called);
 }
 

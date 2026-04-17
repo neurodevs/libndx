@@ -20,11 +20,11 @@ public:
     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
   }
 
-  bool isPoweredOn() override {
+  bool is_powered_on() override {
     return manager_.state == CBManagerStatePoweredOn;
   }
 
-  void scanAll(int duration_ms, ScanResultCallback on_complete) override {}
+  void scan_all(int duration_ms, ScanResultCallback on_complete) override {}
 
   void scanForAdvertisement(const std::string& uuid, OnDataCallback on_advertisement_data) {
     advertisement_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
@@ -49,13 +49,13 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scanForPeripheral(const std::string& uuid, OnDataCallback on_data) override {
+  void scan_for_peripheral(const std::string& uuid, OnDataCallback on_data) override {
     peripheral_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     on_peripheral_data_ = on_data;
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
-  int readRssi() override {
+  int read_rssi() override {
     if (delegate_.peripheral)
       [delegate_.peripheral readRSSI];
     return rssi_;
@@ -127,7 +127,7 @@ private:
   int rssi_ = 0;
 };
 
-std::unique_ptr<BleProvider> createBleProvider() {
+std::unique_ptr<BleProvider> create_ble_provider() {
   return std::make_unique<CoreBluetoothProvider>();
 }
 

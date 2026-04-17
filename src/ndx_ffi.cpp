@@ -14,10 +14,10 @@ static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_b
 static std::unordered_map<std::string, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
 
 static BleFactory g_ble_factory = [](const std::string& device_uuid) {
-    return std::make_shared<ndx::BleBackend>(device_uuid, ndx::createBleProvider());
+    return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
 };
 
-std::shared_ptr<ndx::BleBackend> getBleBackend(const std::string& device_uuid) {
+std::shared_ptr<ndx::BleBackend> get_ble_backend(const std::string& device_uuid) {
     auto it = g_ble_backends.find(device_uuid);
     return it != g_ble_backends.end() ? it->second : nullptr;
 }
@@ -30,7 +30,7 @@ static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
     return std::make_shared<ndx::FtdiBackend>(serial_number);
 };
 
-std::shared_ptr<ndx::FtdiBackend> getFtdiBackend(const std::string& serial_number) {
+std::shared_ptr<ndx::FtdiBackend> get_ftdi_backend(const std::string& serial_number) {
     auto it = g_ftdi_backends.find(serial_number);
     return it != g_ftdi_backends.end() ? it->second : nullptr;
 }
@@ -39,7 +39,7 @@ static bool is_ftdi_registered(const std::string& serial_number) {
     return g_ftdi_backends.count(serial_number) > 0;
 }
 
-extern "C" char* createBleBackend(const char* config_json) {
+extern "C" char* create_ble_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
@@ -64,39 +64,39 @@ extern "C" char* createBleBackend(const char* config_json) {
     }
 }
 
-extern "C" char* startBleBackend(const char* device_uuid, void (*on_data)(const char* packet_json)) {
+extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(const char* packet_json)) {
     try {
-        return startBackend(device_uuid, getBleBackend, on_data);
+        return start_backend(device_uuid, get_ble_backend, on_data);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* writeBleCharacteristic(const char* device_uuid, const char* char_uuid, const char* value) {
+extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value) {
     return to_ffi_result({{"status", 200}});
 }
 
-extern "C" char* readBleRssi(const char* device_uuid) {
+extern "C" char* read_ble_rssi(const char* device_uuid) {
     try {
-        auto backend = getBleBackend(device_uuid);
-        int rssi = backend->readRssi();
+        auto backend = get_ble_backend(device_uuid);
+        int rssi = backend->read_rssi();
         return to_ffi_result({{"status", 200}, {"rssi", rssi}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* stopBleBackend(const char* device_uuid)  {
+extern "C" char* stop_ble_backend(const char* device_uuid)  {
     try {
-        return stopBackend(device_uuid, getBleBackend); 
+        return stop_backend(device_uuid, get_ble_backend); 
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* destroyBleBackend(const char* device_uuid) {
+extern "C" char* destroy_ble_backend(const char* device_uuid) {
     try {
-        char* result = destroyBackend(device_uuid, getBleBackend);
+        char* result = destroy_backend(device_uuid, get_ble_backend);
         g_ble_backends.erase(device_uuid);
         return result;
     } catch (const std::exception& e) {
@@ -104,7 +104,7 @@ extern "C" char* destroyBleBackend(const char* device_uuid) {
     }
 }
 
-extern "C" char* createFtdiBackend(const char* config_json) {
+extern "C" char* create_ftdi_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
@@ -129,25 +129,25 @@ extern "C" char* createFtdiBackend(const char* config_json) {
     }
 }
 
-extern "C" char* startFtdiBackend(const char* serial_number, void (*on_data)(const char* packet_json)) {
+extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const char* packet_json)) {
     try {
-        return startBackend(serial_number, getFtdiBackend, on_data);
+        return start_backend(serial_number, get_ftdi_backend, on_data);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* stopFtdiBackend(const char* serial_number) {
+extern "C" char* stop_ftdi_backend(const char* serial_number) {
     try {
-        return stopBackend(serial_number, getFtdiBackend); 
+        return stop_backend(serial_number, get_ftdi_backend); 
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* destroyFtdiBackend(const char* serial_number) {
+extern "C" char* destroy_ftdi_backend(const char* serial_number) {
     try {
-        char* result = destroyBackend(serial_number, getFtdiBackend);
+        char* result = destroy_backend(serial_number, get_ftdi_backend);
         g_ftdi_backends.erase(serial_number);
         return result;
     } catch (const std::exception& e) {
@@ -157,24 +157,24 @@ extern "C" char* destroyFtdiBackend(const char* serial_number) {
 
 // For tests only
 
-void resetBleBackends() {
+void reset_ble_backends() {
     g_ble_backends.clear();
     g_ble_factory = [](const std::string& device_uuid) {
-        return std::make_shared<ndx::BleBackend>(device_uuid, ndx::createBleProvider());
+        return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
     };
 }
 
-void resetFtdiBackends() {
+void reset_ftdi_backends() {
     g_ftdi_backends.clear();
     g_ftdi_factory = [](const std::string& serial_number) {
         return std::make_shared<ndx::FtdiBackend>(serial_number);
     };
 }
 
-void setBleFactory(BleFactory factory) {
+void set_ble_factory(BleFactory factory) {
     g_ble_factory = factory;
 }
 
-void setFtdiFactory(FtdiFactory factory) {
+void set_ftdi_factory(FtdiFactory factory) {
     g_ftdi_factory = factory;
 }

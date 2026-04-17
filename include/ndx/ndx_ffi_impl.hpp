@@ -20,8 +20,8 @@ static char* to_ffi_result(const nlohmann::json& j) {
 }
 
 template<typename GetFn>
-static char* startBackend(const char* device_id, GetFn getBackend, void (*on_data)(const char*)) {
-    auto backend = getBackend(device_id);
+static char* start_backend(const char* device_id, GetFn get_backend, void (*on_data)(const char*)) {
+    auto backend = get_backend(device_id);
     if (backend) backend->start([on_data](const ndx::Packet& p) {
         auto j = nlohmann::json{{"data", p.data}, {"timestamp_ms", p.timestamp_ms}};
         on_data(j.dump().c_str());
@@ -30,15 +30,15 @@ static char* startBackend(const char* device_id, GetFn getBackend, void (*on_dat
 }
 
 template<typename GetFn>
-static char* stopBackend(const char* device_id, GetFn getBackend) {
-    auto backend = getBackend(device_id);
+static char* stop_backend(const char* device_id, GetFn get_backend) {
+    auto backend = get_backend(device_id);
     if (backend) backend->stop();
     return to_ffi_result({{"status", 200}});
 }
 
 template<typename GetFn>
-static char* destroyBackend(const char* device_id, GetFn getBackend) {
-    auto backend = getBackend(device_id);
+static char* destroy_backend(const char* device_id, GetFn get_backend) {
+    auto backend = get_backend(device_id);
     if (backend) backend->destroy();
     return to_ffi_result({{"status", 200}});
 }

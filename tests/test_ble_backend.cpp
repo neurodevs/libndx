@@ -6,20 +6,20 @@ struct FakeBleProvider : ndx::BleProvider {
   std::string scan_requested_for;
   std::vector<ndx::PeripheralInfo> scan_all_results;
 
-  bool isPoweredOn() override { return powered_on; }
-  int readRssi() override { return 0; }
-  void scanForPeripheral(const std::string& uuid, ndx::OnDataCallback) override {
+  bool is_powered_on() override { return powered_on; }
+  int read_rssi() override { return 0; }
+  void scan_for_peripheral(const std::string& uuid, ndx::OnDataCallback) override {
     scan_requested_for = uuid;
   }
-  void scanAll(int duration_ms, ndx::ScanResultCallback cb) override {
+  void scan_all(int duration_ms, ndx::ScanResultCallback cb) override {
     cb(scan_all_results);
   }
 };
 
 struct TestableBleBackend : ndx::BleBackend {
   using ndx::BleBackend::BleBackend;
-  void simulatePacket(const ndx::Packet& p) { fireCallback(p); }
-  using ndx::AcquisitionBackend::isIntentionalDisconnect;
+  void simulate_packet(const ndx::Packet& p) { fire_callback(p); }
+  using ndx::AcquisitionBackend::is_intentional_disconnect;
 };
 
 struct BleBackendFixture {
@@ -57,7 +57,7 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend invokes callback when packet rec
   backend.start([&](const ndx::Packet& p) {
       called = true;
   });
-  backend.simulatePacket(ndx::Packet{});
+  backend.simulate_packet(ndx::Packet{});
   REQUIRE(called);
 }
 
@@ -97,7 +97,7 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with 
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered peripherals") {
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend scan_all returns discovered peripherals") {
   provider->scan_all_results = {
     {"AA:BB:CC:DD:EE:FF", "Muse-1234"},
     {"11:22:33:44:55:66", "Muse-5678"},
@@ -105,7 +105,7 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered perip
 
   std::vector<ndx::PeripheralInfo> results;
 
-  backend.scanAll(5000, [&](const std::vector<ndx::PeripheralInfo>& r) {
+  backend.scan_all(5000, [&](const std::vector<ndx::PeripheralInfo>& r) {
     results = r;
   });
 
@@ -116,11 +116,11 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scanAll returns discovered perip
   REQUIRE(results[1].name == "Muse-5678");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets isIntentionalDisconnect false") {
-  REQUIRE_FALSE(backend.isIntentionalDisconnect());
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect false") {
+  REQUIRE_FALSE(backend.is_intentional_disconnect());
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets isIntentionalDisconnect true") {
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_intentional_disconnect true") {
   backend.destroy();
-  REQUIRE(backend.isIntentionalDisconnect());
+  REQUIRE(backend.is_intentional_disconnect());
 }
