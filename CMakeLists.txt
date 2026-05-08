@@ -96,6 +96,6 @@ if(APPLE)
     "-framework Foundation"
   )
 
-  add_executable(run_ble_backend tools/run_ble_backend.mm)
-  target_link_libraries(run_ble_backend PRIVATE ndx)
+  add_executable(run_muse tools/run_muse.mm)
+  target_link_libraries(run_muse PRIVATE ndx)
 endif()
