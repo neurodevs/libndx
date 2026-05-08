@@ -95,4 +95,7 @@ if(APPLE)
     "-framework CoreBluetooth"
     "-framework Foundation"
   )
+
+  add_executable(run_ble_backend tools/run_ble_backend.mm)
+  target_link_libraries(run_ble_backend PRIVATE ndx)
 endif()
