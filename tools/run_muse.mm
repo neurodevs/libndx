@@ -10,7 +10,7 @@ static void on_data(const char* packet_json) {
 }
 
 int main() {
-  free(create_ble_backend(MUSE_DEVICE_UUID));
+  free(create_ble_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
   free(start_ble_backend(MUSE_DEVICE_UUID, on_data));
 
   [[NSRunLoop currentRunLoop] run];
