@@ -15,9 +15,12 @@ namespace ndx {
 class CoreBluetoothProvider : public BleProvider {
 public:
   CoreBluetoothProvider() {
+    state_sem_ = dispatch_semaphore_create(0);
     delegate_ = [[CoreBluetoothDelegate alloc] initWithProvider:this];
-    manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:nil];
-    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    dispatch_queue_t queue = dispatch_queue_create("com.ndx.bluetooth", DISPATCH_QUEUE_SERIAL);
+    manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:queue];
+    dispatch_semaphore_wait(state_sem_, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+    state_sem_ = nil;
   }
 
   bool is_powered_on() override {
@@ -59,6 +62,10 @@ public:
     if (delegate_.peripheral)
       [delegate_.peripheral readRSSI];
     return rssi_;
+  }
+
+  void onStateUpdated() {
+    if (state_sem_) dispatch_semaphore_signal(state_sem_);
   }
 
   void onRssi(int rssi) { rssi_ = rssi; }
@@ -120,6 +127,7 @@ private:
 
   CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
+  dispatch_semaphore_t state_sem_ = nil;
   NSString* peripheral_target_id_ = nil;
   NSString* advertisement_target_id_ = nil;
   OnDataCallback on_peripheral_data_;
@@ -143,7 +151,12 @@ std::unique_ptr<BleProvider> create_ble_provider() {
   return self;
 }
 
-- (void)centralManagerDidUpdateState:(CBCentralManager*)central {}
+- (void)centralManagerDidUpdateState:(CBCentralManager*)central {
+  if (central.state != CBManagerStateUnknown &&
+      central.state != CBManagerStateResetting) {
+    _provider->onStateUpdated();
+  }
+}
 
 - (void)centralManager:(CBCentralManager*)central
  didDiscoverPeripheral:(CBPeripheral*)peripheral
