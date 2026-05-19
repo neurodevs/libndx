@@ -10,6 +10,13 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void simulate_packet(const ndx::Packet& p) { if (on_data) on_data(p); }
   int rssi = 0;
   int read_rssi() override { return rssi; }
+
+  std::string last_write_char_uuid;
+  std::vector<uint8_t> last_write_data;
+  void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
+    last_write_char_uuid = char_uuid;
+    last_write_data.assign(data, data + len);
+  }
 };
 
 struct BleFfiFixture {
@@ -40,8 +47,8 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json write() {
-    const char* result = write_ble_characteristic("device-uuid", "char-uuid", "char-value");
+  nlohmann::json write(const char* char_uuid = "char-uuid", const char* value = "\x05p50\n") {
+    const char* result = write_ble_characteristic(valid_uuid.c_str(), char_uuid, value);
     return nlohmann::json::parse(result);
   }
 
@@ -70,6 +77,9 @@ struct BleFfiFixture {
         void stop() override { throw std::runtime_error("internal server error"); }
         void destroy() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { throw std::runtime_error("internal server error"); }
+        void write_characteristic(const std::string&, const uint8_t*, size_t) override {
+          throw std::runtime_error("internal server error");
+        }
       };
       return std::make_shared<ThrowingBleBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
@@ -167,6 +177,27 @@ TEST_CASE_METHOD(BleFfiFixture, "start_ble_backend returns 500 on unexpected thr
 TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic returns ok") {
     auto json = BleFfiFixture::write();
     REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 404 if backend not found") {
+  auto json = nlohmann::json::parse(write_ble_characteristic("unknown-uuid", "char-uuid", "\x01\n"));
+  REQUIRE(json["status"] == 404);
+  REQUIRE(json["error"] == "backend not found");
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic forwards data to provider") {
+  const char* value = "\x04" "p50\n";
+  BleFfiFixture::write("273E0001-4C4D-454D-96BE-F03BAC821358", value);
+  REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
+  REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x04, 'p', '5', '0', '\n'});
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 500 on unexpected throw") {
+  set_throwing_factory();
+  create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  auto json = BleFfiFixture::write();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "read_ble_rssi returns ok") {

@@ -2,6 +2,8 @@
 #include <lsl_c.h>
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <Foundation/Foundation.h>
+#include <unordered_map>
+#include <string>
 
 namespace ndx { class CoreBluetoothProvider; }
 
@@ -100,10 +102,21 @@ public:
 
   void onDiscoveredCharacteristics(CBPeripheral* peripheral, CBService* service) {
     for (CBCharacteristic* characteristic in service.characteristics) {
+      std::string uuid = characteristic.UUID.UUIDString.UTF8String;
+      characteristics_[uuid] = characteristic;
       if (characteristic.properties & CBCharacteristicPropertyNotify) {
         [peripheral setNotifyValue:YES forCharacteristic:characteristic];
       }
     }
+  }
+
+  void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
+    auto it = characteristics_.find(char_uuid);
+    if (it == characteristics_.end()) return;
+    NSData* nsdata = [NSData dataWithBytes:data length:len];
+    [delegate_.peripheral writeValue:nsdata
+                   forCharacteristic:it->second
+                                type:CBCharacteristicWriteWithoutResponse];
   }
 
   void onCharacteristicValue(CBCharacteristic* characteristic) {
@@ -133,6 +146,7 @@ private:
   OnDataCallback on_peripheral_data_;
   OnDataCallback on_advertisement_data_;
   int rssi_ = 0;
+  std::unordered_map<std::string, CBCharacteristic*> characteristics_;
 };
 
 std::unique_ptr<BleProvider> create_ble_provider() {

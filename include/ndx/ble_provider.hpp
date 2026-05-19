@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -22,6 +23,7 @@ public:
   virtual void scan_for_peripheral(const std::string& uuid, OnDataCallback on_data) = 0;
   virtual void scan_all(int duration_ms, ScanResultCallback on_complete) = 0;
   virtual int read_rssi() = 0;
+  virtual void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) = 0;
 };
 
 std::unique_ptr<BleProvider> create_ble_provider();

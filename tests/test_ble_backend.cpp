@@ -6,8 +6,15 @@ struct FakeBleProvider : ndx::BleProvider {
   std::string scan_requested_for;
   std::vector<ndx::PeripheralInfo> scan_all_results;
 
+  std::string last_write_char_uuid;
+  std::vector<uint8_t> last_write_data;
+
   bool is_powered_on() override { return powered_on; }
   int read_rssi() override { return 0; }
+  void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
+    last_write_char_uuid = char_uuid;
+    last_write_data.assign(data, data + len);
+  }
   void scan_for_peripheral(const std::string& uuid, ndx::OnDataCallback) override {
     scan_requested_for = uuid;
   }
@@ -123,4 +130,11 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect f
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_intentional_disconnect true") {
   backend.destroy();
   REQUIRE(backend.is_intentional_disconnect());
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend write_characteristic forwards data to provider") {
+  const uint8_t data[] = {0x02, 'h', '\n'};
+  backend.write_characteristic("273E0001-4C4D-454D-96BE-F03BAC821358", data, sizeof(data));
+  REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
+  REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x02, 'h', '\n'});
 }

@@ -73,7 +73,15 @@ extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(cons
 }
 
 extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value) {
-    return to_ffi_result({{"status", 200}});
+    try {
+        auto backend = get_ble_backend(device_uuid);
+        if (!backend) return to_ffi_result({{"status", 404}, {"error", "backend not found"}});
+        size_t len = static_cast<uint8_t>(value[0]) + 1;
+        backend->write_characteristic(char_uuid, reinterpret_cast<const uint8_t*>(value), len);
+        return to_ffi_result({{"status", 200}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
 }
 
 extern "C" char* read_ble_rssi(const char* device_uuid) {
