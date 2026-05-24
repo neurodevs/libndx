@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "ndx/ndx_ffi.hpp"
@@ -74,12 +75,16 @@ extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(cons
     }
 }
 
-extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value) {
+extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* cmd) {
     try {
         auto backend = get_ble_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 404}, {"error", "backend not found"}});
-        size_t len = static_cast<uint8_t>(value[0]) + 1;
-        backend->write_characteristic(char_uuid, reinterpret_cast<const uint8_t*>(value), len);
+        size_t cmd_len = strlen(cmd);
+        std::vector<char> buf(cmd_len + 2);
+        buf[0] = (char)(cmd_len + 1);
+        memcpy(buf.data() + 1, cmd, cmd_len);
+        buf[1 + cmd_len] = '\n';
+        backend->write_characteristic(char_uuid, reinterpret_cast<const uint8_t*>(buf.data()), buf.size());
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});

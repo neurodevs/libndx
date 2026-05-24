@@ -47,8 +47,8 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json write(const char* char_uuid = "char-uuid", const char* value = "\x05p50\n") {
-    const char* result = write_ble_characteristic(valid_uuid.c_str(), char_uuid, value);
+  nlohmann::json write(const char* char_uuid = "char-uuid", const char* cmd = "p50") {
+    const char* result = write_ble_characteristic(valid_uuid.c_str(), char_uuid, cmd);
     return nlohmann::json::parse(result);
   }
 
@@ -179,14 +179,13 @@ TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic returns ok") {
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 404 if backend not found") {
-  auto json = nlohmann::json::parse(write_ble_characteristic("unknown-uuid", "char-uuid", "\x01\n"));
+  auto json = nlohmann::json::parse(write_ble_characteristic("unknown-uuid", "char-uuid", ""));
   REQUIRE(json["status"] == 404);
   REQUIRE(json["error"] == "backend not found");
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic forwards data to provider") {
-  const char* value = "\x04" "p50\n";
-  BleFfiFixture::write("273E0001-4C4D-454D-96BE-F03BAC821358", value);
+  BleFfiFixture::write("273E0001-4C4D-454D-96BE-F03BAC821358", "p50");
   REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
   REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x04, 'p', '5', '0', '\n'});
 }

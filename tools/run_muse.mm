@@ -16,12 +16,7 @@ static void on_data(const uint32_t* data, size_t len, double timestamp_ms) {
 static void write_start_commands() {
   const char* commands[] = {"h", "p50", "s", "d"};
   for (const char* cmd : commands) {
-    char buf[32];
-    size_t cmd_len = strlen(cmd);
-    buf[0] = (char)(cmd_len + 1);
-    memcpy(buf + 1, cmd, cmd_len);
-    buf[1 + cmd_len] = '\n';
-    free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, buf));
+    free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, cmd));
   }
 }
 
