@@ -3,6 +3,8 @@
 #include <memory>
 #include <functional>
 #include <string>
+#include <cstdint>
+#include <cstddef>
 
 #include "ndx/ble_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
@@ -10,14 +12,14 @@
 extern "C" {
 
 char* create_ble_backend(const char* device_uuid);
-char* start_ble_backend(const char* device_uuid, void (*on_data)(const char* packet_json));
+char* start_ble_backend(const char* device_uuid, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms));
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
 char* read_ble_rssi(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);
 char* destroy_ble_backend(const char* device_uuid);
 
 char* create_ftdi_backend(const char* serial_number);
-char* start_ftdi_backend(const char* serial_number, void (*on_data)(const char* packet_json));
+char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms));
 char* stop_ftdi_backend(const char* serial_number);
 char* destroy_ftdi_backend(const char* serial_number);
 

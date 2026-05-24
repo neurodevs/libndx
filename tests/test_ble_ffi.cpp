@@ -43,7 +43,7 @@ struct BleFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = start_ble_backend(valid_uuid.c_str(), [](const char* packet_json) {});
+    const char* result = start_ble_backend(valid_uuid.c_str(), [](const uint32_t*, size_t, double) {});
     return nlohmann::json::parse(result);
   }
 
@@ -151,11 +151,10 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend calls start on backend") {
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when packet fires") {
   static ndx::Packet received;
 
-  auto on_data = [](const char* packet_json) {
-    auto j = nlohmann::json::parse(packet_json);
+  auto on_data = [](const uint32_t* data, size_t len, double timestamp_ms) {
     received = ndx::Packet{
-      j["data"].get<std::vector<uint32_t>>(),
-      j["timestamp_ms"].get<uint64_t>()
+      std::vector<uint32_t>(data, data + len),
+      static_cast<uint64_t>(timestamp_ms)
     };
   };
 

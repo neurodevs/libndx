@@ -1,4 +1,6 @@
 #include <cstring>
+#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <memory>
@@ -64,7 +66,7 @@ extern "C" char* create_ble_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(const char* packet_json)) {
+extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms)) {
     try {
         return start_backend(device_uuid, get_ble_backend, on_data);
     } catch (const std::exception& e) {
@@ -137,7 +139,7 @@ extern "C" char* create_ftdi_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const char* packet_json)) {
+extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms)) {
     try {
         return start_backend(serial_number, get_ftdi_backend, on_data);
     } catch (const std::exception& e) {

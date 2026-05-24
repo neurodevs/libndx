@@ -16,7 +16,7 @@ struct FtdiFfiFixture {
   }
 
   nlohmann::json start() {
-    const char* result = start_ftdi_backend(valid_serial.c_str(), [](const char*) {});
+    const char* result = start_ftdi_backend(valid_serial.c_str(), [](const uint32_t*, size_t, double) {});
     return nlohmann::json::parse(result);
   }
 

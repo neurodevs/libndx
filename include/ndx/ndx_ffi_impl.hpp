@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include "ndx/acquisition_backend.hpp"
+#include <cstdint>
 
 static bool is_valid_uuid(const std::string& uuid) {
     const int num_hyphens = std::count(uuid.begin(), uuid.end(), '-');
@@ -20,11 +21,10 @@ static char* to_ffi_result(const nlohmann::json& j) {
 }
 
 template<typename GetFn>
-static char* start_backend(const char* device_id, GetFn get_backend, void (*on_data)(const char*)) {
+static char* start_backend(const char* device_id, GetFn get_backend, void (*on_data)(const uint32_t*, size_t, double)) {
     auto backend = get_backend(device_id);
     if (backend) backend->start([on_data](const ndx::Packet& p) {
-        auto j = nlohmann::json{{"data", p.data}, {"timestamp_ms", p.timestamp_ms}};
-        on_data(j.dump().c_str());
+        on_data(p.data.data(), p.data.size(), static_cast<double>(p.timestamp_ms));
     });
     return to_ffi_result({{"status", 200}});
 }

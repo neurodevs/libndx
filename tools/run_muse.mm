@@ -7,8 +7,10 @@
 static const char* MUSE_DEVICE_UUID = "CA6A61B7-B7A8-AF24-3C9E-04A6A5012554";
 static const char* CONTROL_CHAR_UUID = "273E0001-4C4D-454D-96BE-F03BAC821358";
 
-static void on_data(const char* packet_json) {
-  printf("%s\n", packet_json);
+static void on_data(const uint32_t* data, size_t len, double timestamp_ms) {
+  printf("ts=%.0f", timestamp_ms);
+  for (size_t i = 0; i < len; i++) printf(" %u", data[i]);
+  printf("\n");
 }
 
 static void write_start_commands() {
