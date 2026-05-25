@@ -89,7 +89,7 @@ public:
     }
   }
 
-  void onConnected(CBPeripheral* peripheral) {
+  void onConnectedPeripheral(CBPeripheral* peripheral) {
     peripheral.delegate = delegate_;
     [peripheral discoverServices:nil];
   }
@@ -183,7 +183,7 @@ std::unique_ptr<BleProvider> create_ble_provider() {
 
 - (void)centralManager:(CBCentralManager*)central
   didConnectPeripheral:(CBPeripheral*)peripheral {
-  _provider->onConnected(peripheral);
+  _provider->onConnectedPeripheral(peripheral);
 }
 
 - (void)peripheral:(CBPeripheral*)peripheral
