@@ -11,8 +11,16 @@
 
 extern "C" {
 
+typedef void (*on_data_fn)(const uint32_t* data, size_t len, double timestamp_ms);
+
+struct CharCallback {
+  const char* char_uuid;  // required
+  const char* char_name;  // optional, may be NULL
+  on_data_fn  callback;
+};
+
 char* create_ble_backend(const char* device_uuid);
-char* start_ble_backend(const char* device_uuid, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms));
+char* start_ble_backend(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
 char* read_ble_rssi(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);

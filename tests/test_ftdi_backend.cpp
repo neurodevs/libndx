@@ -1,16 +1,29 @@
 #include <catch2/catch_all.hpp>
+#include <functional>
+#include <unordered_map>
 #include "ndx/ftdi_backend.hpp"
 
 struct TestableFtdiBackend : ndx::FtdiBackend {
   using ndx::FtdiBackend::FtdiBackend;
-  void simulate_packet(const ndx::Packet& p) { fire_callback(p); }
+
+  std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
+
+  void start(ndx::CharCallbacks cbs) override {
+    ndx::FtdiBackend::start(cbs);
+    for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+  }
+
+  void simulate_packet(const ndx::Packet& p, const std::string& char_uuid = "") {
+    auto it = callbacks.find(char_uuid);
+    if (it != callbacks.end()) it->second(p);
+  }
 };
 
 struct FtdiBackendFixture {
   TestableFtdiBackend backend{ "ABCD1234" };
 
   void start() {
-    backend.start([](const ndx::Packet&) {});
+    backend.start({{"", std::nullopt, [](const ndx::Packet&) {}}});
   }
 
   void stop() {
@@ -33,9 +46,7 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true"
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend invokes callback when packet received") {
   bool called = false;
-  backend.start([&](const ndx::Packet& p) {
-      called = true;
-  });
+  backend.start({{"", std::nullopt, [&](const ndx::Packet&) { called = true; }}});
   backend.simulate_packet(ndx::Packet{});
   REQUIRE(called);
 }

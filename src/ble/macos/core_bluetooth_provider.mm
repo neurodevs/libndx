@@ -1,4 +1,6 @@
 #include "ndx/ble_provider.hpp"
+
+using OnDataCallback = std::function<void(const ndx::Packet&)>;
 #include <lsl_c.h>
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <Foundation/Foundation.h>
@@ -54,9 +56,10 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scan_for_peripheral(const std::string& uuid, OnDataCallback on_data) override {
+  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks) override {
     peripheral_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
-    on_peripheral_data_ = on_data;
+    for (auto& entry : callbacks)
+      char_callbacks_[entry.char_uuid] = std::move(entry.on_data);
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
   }
 
@@ -120,13 +123,17 @@ public:
   }
 
   void onCharacteristicValue(CBCharacteristic* characteristic) {
+    std::string uuid = characteristic.UUID.UUIDString.UTF8String;
+    auto it = char_callbacks_.find(uuid);
+    if (it == char_callbacks_.end()) return;
+
     uint64_t timestamp_ms = static_cast<uint64_t>(lsl_local_clock() * 1000.0);
     NSData* data = characteristic.value;
     Packet packet;
     packet.timestamp_ms = timestamp_ms;
     const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
-    on_peripheral_data_(packet);
+    it->second(packet);
   }
 
   void disconnect_peripheral(const std::string& uuid) override {
@@ -149,7 +156,7 @@ private:
   dispatch_semaphore_t state_sem_ = nil;
   NSString* peripheral_target_id_ = nil;
   NSString* advertisement_target_id_ = nil;
-  OnDataCallback on_peripheral_data_;
+  std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
   OnDataCallback on_advertisement_data_;
   int rssi_ = 0;
   std::unordered_map<std::string, CBCharacteristic*> characteristics_;

@@ -2,8 +2,9 @@
 #include <functional>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace ndx {
 
@@ -12,26 +13,30 @@ struct Packet {
   std::uint64_t timestamp_ms;
 };
 
-using OnDataCallback = std::function<void(const Packet&)>;
+struct CharCallbackEntry {
+  std::string char_uuid;
+  std::optional<std::string> char_name;
+  std::function<void(const Packet&)> on_data;
+};
+
+using CharCallbacks = std::vector<CharCallbackEntry>;
 
 class AcquisitionBackend {
 public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
-  virtual void start(OnDataCallback cb);
+  virtual void start(CharCallbacks callbacks);
   virtual void stop();
   virtual void destroy();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }
   std::string device_id_;
-  
-  protected:
+
+protected:
   virtual std::string name() const = 0;
-  void fire_callback(const Packet& p);
   bool is_intentional_disconnect() const { return intentional_disconnect_; }
-  
-  private:
-  OnDataCallback callback_;
+
+private:
   bool is_running_ = false;
   bool intentional_disconnect_ = false;
 };

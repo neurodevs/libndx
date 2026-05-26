@@ -67,9 +67,9 @@ extern "C" char* create_ble_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ble_backend(const char* device_uuid, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms)) {
+extern "C" char* start_ble_backend(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
     try {
-        return start_backend(device_uuid, get_ble_backend, on_data);
+        return start_backend(device_uuid, get_ble_backend, callbacks, num_callbacks);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
@@ -146,7 +146,8 @@ extern "C" char* create_ftdi_backend(const char* config_json) {
 
 extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms)) {
     try {
-        return start_backend(serial_number, get_ftdi_backend, on_data);
+        CharCallback cb{"", nullptr, on_data};
+        return start_backend(serial_number, get_ftdi_backend, &cb, 1);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

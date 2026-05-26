@@ -1,4 +1,6 @@
 #include <catch2/catch_all.hpp>
+#include <functional>
+#include <unordered_map>
 #include "ndx/ble_backend.hpp"
 
 struct FakeBleProvider : ndx::BleProvider {
@@ -10,14 +12,17 @@ struct FakeBleProvider : ndx::BleProvider {
   std::string last_write_char_uuid;
   std::vector<uint8_t> last_write_data;
 
+  std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
+
   bool is_powered_on() override { return powered_on; }
   int read_rssi() override { return 0; }
   void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);
   }
-  void scan_for_peripheral(const std::string& uuid, ndx::OnDataCallback) override {
+  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs) override {
     scan_requested_for = uuid;
+    for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
   void scan_all(int duration_ms, ndx::ScanResultCallback cb) override {
     cb(scan_all_results);
@@ -25,11 +30,15 @@ struct FakeBleProvider : ndx::BleProvider {
   void disconnect_peripheral(const std::string& uuid) override {
     disconnect_requested_for = uuid;
   }
+
+  void simulate_packet(const ndx::Packet& p, const std::string& char_uuid = "") {
+    auto it = callbacks.find(char_uuid);
+    if (it != callbacks.end()) it->second(p);
+  }
 };
 
 struct TestableBleBackend : ndx::BleBackend {
   using ndx::BleBackend::BleBackend;
-  void simulate_packet(const ndx::Packet& p) { fire_callback(p); }
   using ndx::AcquisitionBackend::is_intentional_disconnect;
 };
 
@@ -42,7 +51,7 @@ struct BleBackendFixture {
       backend("A1:B2:C3:D4:E5:F6", std::unique_ptr<ndx::BleProvider>(provider)) {}
 
   void start() {
-    backend.start([](const ndx::Packet&) {});
+    backend.start({});
   }
 
   void stop() {
@@ -65,11 +74,28 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") 
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend invokes callback when packet received") {
   bool called = false;
-  backend.start([&](const ndx::Packet& p) {
-      called = true;
-  });
-  backend.simulate_packet(ndx::Packet{});
+  const std::string uuid = "test-char-uuid";
+  backend.start({{uuid, std::nullopt, [&](const ndx::Packet&) { called = true; }}});
+  provider->simulate_packet(ndx::Packet{}, uuid);
   REQUIRE(called);
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend only invokes callback for matching char UUID") {
+  int a_calls = 0, b_calls = 0;
+  backend.start({
+    {"uuid-a", std::nullopt, [&](const ndx::Packet&) { a_calls++; }},
+    {"uuid-b", std::nullopt, [&](const ndx::Packet&) { b_calls++; }},
+  });
+  provider->simulate_packet(ndx::Packet{}, "uuid-a");
+  REQUIRE(a_calls == 1);
+  REQUIRE(b_calls == 0);
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend does not invoke callback for unregistered char UUID") {
+  bool called = false;
+  backend.start({{"uuid-a", std::nullopt, [&](const ndx::Packet&) { called = true; }}});
+  provider->simulate_packet(ndx::Packet{}, "uuid-b");
+  REQUIRE_FALSE(called);
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
