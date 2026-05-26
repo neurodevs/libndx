@@ -13,6 +13,11 @@ static void on_data(const uint32_t* data, size_t len, double timestamp_ms) {
   printf("\n");
 }
 
+static void after(double seconds, dispatch_block_t block) {
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(seconds * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), block);
+}
+
 static void write_start_commands() {
   const char* commands[] = {"h", "p50", "s", "d"};
   for (const char* cmd : commands) {
@@ -24,19 +29,9 @@ int main() {
   free(create_ble_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
   free(start_ble_backend(MUSE_DEVICE_UUID, on_data));
 
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), ^{ write_start_commands(); });
-
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), ^{
-    free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h"));
-  });
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), ^{
-    free(stop_ble_backend(MUSE_DEVICE_UUID));
-    exit(0);
-  });
+  after(2.0, ^{ write_start_commands(); });
+  after(4.0, ^{ free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });
+  after(6.0, ^{ free(stop_ble_backend(MUSE_DEVICE_UUID)); exit(0); });
 
   [[NSRunLoop currentRunLoop] run];
   return 0;
