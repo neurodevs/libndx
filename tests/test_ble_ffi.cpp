@@ -17,6 +17,11 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);
   }
+
+  std::string disconnect_requested_for;
+  void disconnect_peripheral(const std::string& uuid) override {
+    disconnect_requested_for = uuid;
+  }
 };
 
 struct BleFfiFixture {

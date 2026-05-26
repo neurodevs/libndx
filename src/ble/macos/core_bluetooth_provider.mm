@@ -129,6 +129,12 @@ public:
     on_peripheral_data_(packet);
   }
 
+  void disconnect_peripheral(const std::string& uuid) override {
+    if (!delegate_.peripheral) return;
+    if (![delegate_.peripheral.identifier.UUIDString isEqualToString:[NSString stringWithUTF8String:uuid.c_str()]]) return;
+    [manager_ cancelPeripheralConnection:delegate_.peripheral];
+  }
+
 private:
   // Returns allowDuplicates:YES if advertisement mode is active, so both
   // modes can coexist on the single CBCentralManager scan.

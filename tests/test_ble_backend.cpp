@@ -5,6 +5,7 @@ struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
   std::string scan_requested_for;
   std::vector<ndx::PeripheralInfo> scan_all_results;
+  std::string disconnect_requested_for;
 
   std::string last_write_char_uuid;
   std::vector<uint8_t> last_write_data;
@@ -20,6 +21,9 @@ struct FakeBleProvider : ndx::BleProvider {
   }
   void scan_all(int duration_ms, ndx::ScanResultCallback cb) override {
     cb(scan_all_results);
+  }
+  void disconnect_peripheral(const std::string& uuid) override {
+    disconnect_requested_for = uuid;
   }
 };
 
@@ -74,6 +78,17 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") 
   REQUIRE_FALSE(backend.is_running());
 }
 
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
+  REQUIRE_THROWS_WITH(stop(), "BleBackend: stop called while not running");
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop calls stop on provider") {
+  start();
+  stop();
+
+  REQUIRE(provider->disconnect_requested_for == "A1:B2:C3:D4:E5:F6");
+}
+
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy works if not running") {
   destroy();
   REQUIRE_FALSE(backend.is_running());
@@ -88,10 +103,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_running to false
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws if already running") {
   start();
   REQUIRE_THROWS_WITH(start(), "BleBackend: start called while already running");
-}
-
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
-  REQUIRE_THROWS_WITH(stop(), "BleBackend: stop called while not running");
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is not powered on") {

@@ -16,6 +16,11 @@ void BleBackend::start(OnDataCallback cb) {
   provider_->scan_for_peripheral(device_id_, cb);
 }
 
+void BleBackend::stop() {
+  AcquisitionBackend::stop();
+  provider_->disconnect_peripheral(device_id_);
+}
+
 void BleBackend::scan_all(int duration_ms, ScanResultCallback on_complete) {
   provider_->scan_all(duration_ms, on_complete);
 }
