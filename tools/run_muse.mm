@@ -27,7 +27,12 @@ int main() {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{ write_start_commands(); });
 
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)),
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h"));
+  });
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
     free(stop_ble_backend(MUSE_DEVICE_UUID));
     exit(0);
