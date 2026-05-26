@@ -132,7 +132,7 @@ public:
     Packet packet;
     packet.timestamp_ms = timestamp_ms;
     const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
-    packet.data.assign(bytes, bytes + data.length / sizeof(uint32_t));
+    packet.data.assign(bytes, bytes + data.length);
     it->second(packet);
   }
 
