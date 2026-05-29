@@ -205,9 +205,9 @@ TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 404 if backend not found") {
+TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 400 if backend not found") {
   auto json = nlohmann::json::parse(write_ble_characteristic("unknown-uuid", "char-uuid", ""));
-  REQUIRE(json["status"] == 404);
+  REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
 

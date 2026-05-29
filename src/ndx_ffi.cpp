@@ -78,7 +78,7 @@ extern "C" char* start_ble_backend(const char* device_uuid, const CharCallback* 
 extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* cmd) {
     try {
         auto backend = get_ble_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 404}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         size_t cmd_len = strlen(cmd);
         std::vector<char> buf(cmd_len + 2);
         buf[0] = (char)(cmd_len + 1);
