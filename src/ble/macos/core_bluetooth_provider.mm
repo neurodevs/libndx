@@ -57,8 +57,9 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks,  ndx::OnConnectedCallback /*on_connected*/) override {
+  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected) override {
     peripheral_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
+    on_connected_ = std::move(on_connected);
     for (auto& entry : callbacks)
       char_callbacks_[entry.char_uuid] = std::move(entry.on_data);
     [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
@@ -96,6 +97,14 @@ public:
   void onConnectedPeripheral(CBPeripheral* peripheral) {
     peripheral.delegate = delegate_;
     [peripheral discoverServices:nil];
+    if (on_connected_) {
+      Peripheral p{
+        peripheral.identifier.UUIDString.UTF8String,
+        peripheral.name ? peripheral.name.UTF8String : ""
+      };
+      on_connected_(&p);
+      on_connected_ = nullptr;
+    }
   }
 
   void onDiscoveredServices(CBPeripheral* peripheral) {
@@ -159,6 +168,7 @@ private:
   NSString* advertisement_target_id_ = nil;
   std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
   OnDataCallback on_advertisement_data_;
+  ndx::OnConnectedCallback on_connected_;
   int rssi_ = 0;
   std::unordered_map<std::string, CBCharacteristic*> characteristics_;
 };
