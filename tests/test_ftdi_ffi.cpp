@@ -25,18 +25,12 @@ struct FtdiFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json destroy() {
-    const char* result = destroy_ftdi_backend(valid_serial.c_str());
-    return nlohmann::json::parse(result);
-  }
-
   void set_throwing_factory() {
     set_ftdi_factory([](const std::string& uuid) -> std::shared_ptr<ndx::FtdiBackend> {
       struct ThrowingFtdiBackend : ndx::FtdiBackend {
         using ndx::FtdiBackend::FtdiBackend;
         void start(ndx::CharCallbacks) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
-        void destroy() override { throw std::runtime_error("hardware fault"); }
       };
       return std::make_shared<ThrowingFtdiBackend>(uuid);
     });
@@ -103,24 +97,6 @@ TEST_CASE_METHOD(ValidFtdiFixture, "stop_ftdi_backend calls stop on backend") {
     REQUIRE(!backend->is_running());
 }
 
-TEST_CASE_METHOD(ValidFtdiFixture, "destroy_ftdi_backend returns ok") {
-    FtdiFfiFixture::destroy();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidFtdiFixture, "destroy_ftdi_backend calls stop on backend") {
-    FtdiFfiFixture::start();
-    auto backend = get_ftdi_backend(valid_serial);
-    FtdiFfiFixture::destroy();
-    REQUIRE(!backend->is_running());
-}
-
-TEST_CASE_METHOD(ValidFtdiFixture, "destroy_ftdi_backend removes backend from registry") {
-    FtdiFfiFixture::destroy();
-    auto backend = get_ftdi_backend(valid_serial);
-    REQUIRE(backend == nullptr);
-}
-
 TEST_CASE_METHOD(FtdiFfiFixture, "create_ftdi_backend returns 500 on unexpected throw") {
   set_ftdi_factory([](const std::string&) -> std::shared_ptr<ndx::FtdiBackend> {
     throw std::runtime_error("hardware fault");
@@ -143,14 +119,6 @@ TEST_CASE_METHOD(FtdiFfiFixture, "stop_ftdi_backend returns 500 on unexpected th
   create_and_parse("{\"serial_number\":\"ABCD1234\"}");
   start();
   auto json = stop();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
-}
-
-TEST_CASE_METHOD(FtdiFfiFixture, "destroy_ftdi_backend returns 500 on unexpected throw") {
-  set_throwing_factory();
-  create_and_parse("{\"serial_number\":\"ABCD1234\"}");
-  auto json = destroy();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }

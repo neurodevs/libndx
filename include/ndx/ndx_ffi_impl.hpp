@@ -46,10 +46,3 @@ static char* stop_backend(const char* device_id, GetFn get_backend) {
     if (backend) backend->stop();
     return to_ffi_result({{"status", 200}});
 }
-
-template<typename GetFn>
-static char* destroy_backend(const char* device_id, GetFn get_backend) {
-    auto backend = get_backend(device_id);
-    if (backend) backend->destroy();
-    return to_ffi_result({{"status", 200}});
-}

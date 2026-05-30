@@ -27,7 +27,6 @@ public:
   virtual ~AcquisitionBackend() = default;
   virtual void start(CharCallbacks callbacks);
   virtual void stop();
-  virtual void destroy();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }
   std::string device_id_;

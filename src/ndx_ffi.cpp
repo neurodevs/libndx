@@ -109,16 +109,6 @@ extern "C" char* stop_ble_backend(const char* device_uuid)  {
     }
 }
 
-extern "C" char* destroy_ble_backend(const char* device_uuid) {
-    try {
-        char* result = destroy_backend(device_uuid, get_ble_backend);
-        g_ble_backends.erase(device_uuid);
-        return result;
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
-}
-
 extern "C" char* create_ftdi_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
@@ -156,16 +146,6 @@ extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(c
 extern "C" char* stop_ftdi_backend(const char* serial_number) {
     try {
         return stop_backend(serial_number, get_ftdi_backend); 
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
-}
-
-extern "C" char* destroy_ftdi_backend(const char* serial_number) {
-    try {
-        char* result = destroy_backend(serial_number, get_ftdi_backend);
-        g_ftdi_backends.erase(serial_number);
-        return result;
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

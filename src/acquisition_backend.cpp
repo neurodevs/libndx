@@ -19,12 +19,4 @@ void AcquisitionBackend::stop() {
   is_running_ = false;
 }
 
-void AcquisitionBackend::destroy() {
-  intentional_disconnect_ = true;
-  
-  if (is_running_) {
-    stop();
-  }
-}
-
 }

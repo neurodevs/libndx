@@ -58,9 +58,6 @@ struct BleBackendFixture {
     backend.stop();
   }
 
-  void destroy() {
-    backend.destroy();
-  }
 };
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
@@ -115,17 +112,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop calls stop on provider") {
   REQUIRE(provider->disconnect_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy works if not running") {
-  destroy();
-  REQUIRE_FALSE(backend.is_running());
-}
-
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_running to false") {
-  start();
-  destroy();
-  REQUIRE_FALSE(backend.is_running());
-}
-
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws if already running") {
   start();
   REQUIRE_THROWS_WITH(start(), "BleBackend: start called while already running");
@@ -162,11 +148,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend scan_all returns discovered peri
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect false") {
   REQUIRE_FALSE(backend.is_intentional_disconnect());
-}
-
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend destroy sets is_intentional_disconnect true") {
-  backend.destroy();
-  REQUIRE(backend.is_intentional_disconnect());
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend write_characteristic forwards data to provider") {

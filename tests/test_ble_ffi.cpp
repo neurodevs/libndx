@@ -69,11 +69,6 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json destroy() {
-    const char* result = destroy_ble_backend(valid_uuid.c_str());
-    return nlohmann::json::parse(result);
-  }
-
   nlohmann::json read_rssi() {
     const char* result = read_ble_rssi(valid_uuid.c_str());
     return nlohmann::json::parse(result);
@@ -87,7 +82,6 @@ struct BleFfiFixture {
         using ndx::BleBackend::BleBackend;
         void start(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
-        void destroy() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { throw std::runtime_error("internal server error"); }
         void write_characteristic(const std::string&, const uint8_t*, size_t) override {
           throw std::runtime_error("internal server error");
@@ -262,33 +256,6 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected thro
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   start();
   auto json = stop();
-  REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
-}
-
-
-TEST_CASE_METHOD(ValidBleFixture, "destroy_ble_backend returns ok") {
-    BleFfiFixture::destroy();
-    REQUIRE(json["status"] == 200);
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "destroy_ble_backend calls stop on backend if running") {
-    BleFfiFixture::start();
-    auto backend = get_ble_backend(valid_uuid);
-    BleFfiFixture::destroy();
-    REQUIRE(!backend->is_running());
-}
-
-TEST_CASE_METHOD(ValidBleFixture, "destroy_ble_backend removes backend from registry") {
-    BleFfiFixture::destroy();
-    auto backend = get_ble_backend(valid_uuid);
-    REQUIRE(backend == nullptr);
-}
-
-TEST_CASE_METHOD(BleFfiFixture, "destroy_ble_backend returns 500 on unexpected throw") {
-  set_throwing_factory();
-  create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  auto json = destroy();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
