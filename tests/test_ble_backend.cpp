@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
 #include <unordered_map>
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_backend.hpp"
 
 struct FakeBleProvider : ndx::BleProvider {
@@ -20,7 +21,7 @@ struct FakeBleProvider : ndx::BleProvider {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);
   }
-  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs) override {
+  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback) override {
     scan_requested_for = uuid;
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }

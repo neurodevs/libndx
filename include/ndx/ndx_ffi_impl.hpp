@@ -35,7 +35,7 @@ static char* start_backend(const char* device_id, GetFn get_backend, const CharC
             };
             char_callbacks.push_back(std::move(entry));
         }
-        backend->start(std::move(char_callbacks));
+        backend->start(std::move(char_callbacks), nullptr);
     }
     return to_ffi_result({{"status", 200}});
 }

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstddef>
 
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
 
@@ -20,7 +21,7 @@ struct CharCallback {
 };
 
 char* create_ble_backend(const char* device_uuid);
-char* start_ble_backend(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks);
+char* start_ble_backend(const char* device_uuid, ndx::OnConnectedCallback on_connected, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
 char* read_ble_rssi(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);

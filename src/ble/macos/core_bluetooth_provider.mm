@@ -1,3 +1,4 @@
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_provider.hpp"
 
 using OnDataCallback = std::function<void(const ndx::Packet&)>;
@@ -56,7 +57,7 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks) override {
+  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks,  ndx::OnConnectedCallback /*on_connected*/) override {
     peripheral_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     for (auto& entry : callbacks)
       char_callbacks_[entry.char_uuid] = std::move(entry.on_data);

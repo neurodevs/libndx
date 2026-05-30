@@ -2,17 +2,23 @@
 #include <nlohmann/json.hpp>
 #include <functional>
 #include <unordered_map>
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
 
 struct AlwaysOnBleProvider : ndx::BleProvider {
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
+  ndx::OnConnectedCallback on_connected;
   bool is_powered_on() override { return true; }
-  void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs) override {
+  void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback connected) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+    on_connected = std::move(connected);
   }
   void scan_all(int, ndx::ScanResultCallback) override {}
   void simulate_packet(const ndx::Packet& p) {
     for (auto& [uuid, cb] : callbacks) cb(p);
+  }
+  void simulate_connected(ndx::Peripheral* peripheral = nullptr) {
+    if (on_connected) on_connected(peripheral);
   }
   int rssi = 0;
   int read_rssi() override { return rssi; }
@@ -55,7 +61,7 @@ struct BleFfiFixture {
 
   nlohmann::json start() {
     static CharCallback cb{"test-char", nullptr, [](const uint32_t*, size_t, double) {}};
-    const char* result = start_ble_backend(valid_uuid.c_str(), &cb, 1);
+    const char* result = start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
     return nlohmann::json::parse(result);
   }
 
@@ -80,7 +86,7 @@ struct BleFfiFixture {
     set_ble_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
-        void start(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
+        void start(ndx::CharCallbacks, ndx::OnConnectedCallback) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { throw std::runtime_error("internal server error"); }
         void write_characteristic(const std::string&, const uint8_t*, size_t) override {
@@ -165,7 +171,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when pac
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_backend(valid_uuid.c_str(), &cb, 1);
+  start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
   provider->simulate_packet({{42, 43}, 1000});
 
   REQUIRE(received.data == std::vector<uint32_t>{42, 43});
@@ -179,7 +185,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend routes multiple callbacks t
     {"char-b", nullptr, [](const uint32_t*, size_t, double) { b_calls++; }},
   };
 
-  start_ble_backend(valid_uuid.c_str(), cbs, 2);
+  start_ble_backend(valid_uuid.c_str(), nullptr, cbs, 2);
   provider->simulate_packet(ndx::Packet{});
 
   REQUIRE(a_calls == 1);
@@ -258,4 +264,15 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected thro
   auto json = stop();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callback when connected") {
+  static bool connected_called = false;
+  static ndx::OnConnectedCallback fn = [](const ndx::Peripheral*) { connected_called = true; };
+  static CharCallback cb{"test-char", nullptr, [](const uint32_t*, size_t, double) {}};
+
+  start_ble_backend(valid_uuid.c_str(), fn, &cb, 1);
+  provider->simulate_connected();
+
+  REQUIRE(connected_called);
 }

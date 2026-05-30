@@ -5,7 +5,7 @@ namespace ndx {
 AcquisitionBackend::AcquisitionBackend(const std::string& device_id)
   : device_id_(device_id) {}
 
-void AcquisitionBackend::start(CharCallbacks callbacks) {
+void AcquisitionBackend::start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected) {
   if (is_running_) {
     throw std::runtime_error(name() + ": start called while already running");
   }

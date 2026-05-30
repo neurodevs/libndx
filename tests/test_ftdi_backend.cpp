@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
 #include <unordered_map>
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
 
 struct TestableFtdiBackend : ndx::FtdiBackend {
@@ -8,8 +9,8 @@ struct TestableFtdiBackend : ndx::FtdiBackend {
 
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
 
-  void start(ndx::CharCallbacks cbs) override {
-    ndx::FtdiBackend::start(cbs);
+  void start(ndx::CharCallbacks cbs, ndx::OnConnectedCallback on_connected = nullptr) override {
+    ndx::FtdiBackend::start(cbs, on_connected);
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
 

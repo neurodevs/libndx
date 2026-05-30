@@ -9,6 +9,7 @@
 
 #include "ndx/ndx_ffi.hpp"
 #include "ndx/ndx_ffi_impl.hpp"
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ble_provider.hpp"
 #include "ndx/ftdi_backend.hpp"
@@ -67,9 +68,19 @@ extern "C" char* create_ble_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ble_backend(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_backend(const char* device_uuid, ndx::OnConnectedCallback on_connected, const CharCallback* callbacks, size_t num_callbacks) {
     try {
-        return start_backend(device_uuid, get_ble_backend, callbacks, num_callbacks);
+        auto backend = get_ble_backend(device_uuid);
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        ndx::CharCallbacks cbs;
+        for (size_t i = 0; i < num_callbacks; ++i) {
+            auto& c = callbacks[i];
+            cbs.push_back({c.char_uuid ? c.char_uuid : "", c.char_name ? c.char_name : "", [fn = c.callback](const ndx::Packet& p) {
+                fn(p.data.data(), p.data.size(), static_cast<double>(p.timestamp_ms));
+            }});
+        }
+        backend->start(std::move(cbs), on_connected);
+        return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

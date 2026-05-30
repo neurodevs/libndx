@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <nlohmann/json.hpp>
+#include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
 
 struct FtdiFfiFixture {
@@ -29,7 +30,7 @@ struct FtdiFfiFixture {
     set_ftdi_factory([](const std::string& uuid) -> std::shared_ptr<ndx::FtdiBackend> {
       struct ThrowingFtdiBackend : ndx::FtdiBackend {
         using ndx::FtdiBackend::FtdiBackend;
-        void start(ndx::CharCallbacks) override { throw std::runtime_error("hardware fault"); }
+        void start(ndx::CharCallbacks,  ndx::OnConnectedCallback) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
       };
       return std::make_shared<ThrowingFtdiBackend>(uuid);

@@ -21,11 +21,19 @@ struct CharCallbackEntry {
 
 using CharCallbacks = std::vector<CharCallbackEntry>;
 
+struct Peripheral {
+  std::string uuid;
+  std::string name;
+};
+
+using OnConnectedCallback = std::function<void(const Peripheral*)>;
+
+
 class AcquisitionBackend {
 public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
-  virtual void start(CharCallbacks callbacks);
+  virtual void start(CharCallbacks callbacks, OnConnectedCallback on_connected = nullptr);
   virtual void stop();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }
