@@ -52,8 +52,8 @@ public:
 
     Packet packet;
     packet.timestamp_ms = timestamp_ms;
-    const uint32_t* words = static_cast<const uint32_t*>(mfgData.bytes);
-    packet.data.assign(words, words + mfgData.length / sizeof(uint32_t));
+    const uint8_t* words = static_cast<const uint8_t*>(mfgData.bytes);
+    packet.data.assign(words, words + mfgData.length);
     on_advertisement_data_(packet);
   }
 
@@ -132,7 +132,7 @@ public:
     NSData* data = characteristic.value;
     Packet packet;
     packet.timestamp_ms = timestamp_ms;
-    const uint32_t* bytes = static_cast<const uint32_t*>(data.bytes);
+    const uint8_t* bytes = static_cast<const uint8_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length);
     it->second(packet);
   }

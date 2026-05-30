@@ -12,7 +12,8 @@
 
 extern "C" {
 
-typedef void (*on_data_fn)(const uint32_t* data, size_t len, double timestamp_ms);
+typedef void (*on_connected_fn)();
+typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_ms);
 
 struct CharCallback {
   const char* char_uuid;  // required
@@ -21,13 +22,13 @@ struct CharCallback {
 };
 
 char* create_ble_backend(const char* device_uuid);
-char* start_ble_backend(const char* device_uuid, ndx::OnConnectedCallback on_connected, const CharCallback* callbacks, size_t num_callbacks);
+char* start_ble_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
 char* read_ble_rssi(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);
 
 char* create_ftdi_backend(const char* serial_number);
-char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms));
+char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_ms));
 char* stop_ftdi_backend(const char* serial_number);
 
 }

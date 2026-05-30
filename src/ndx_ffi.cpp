@@ -68,7 +68,7 @@ extern "C" char* create_ble_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ble_backend(const char* device_uuid, ndx::OnConnectedCallback on_connected, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
     try {
         auto backend = get_ble_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
@@ -79,7 +79,10 @@ extern "C" char* start_ble_backend(const char* device_uuid, ndx::OnConnectedCall
                 fn(p.data.data(), p.data.size(), static_cast<double>(p.timestamp_ms));
             }});
         }
-        backend->start(std::move(cbs), on_connected);
+        ndx::OnConnectedCallback cb = on_connected
+            ? ndx::OnConnectedCallback([on_connected](const ndx::Peripheral*) { on_connected(); })
+            : nullptr;
+        backend->start(std::move(cbs), std::move(cb));
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
@@ -145,7 +148,7 @@ extern "C" char* create_ftdi_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint32_t* data, size_t len, double timestamp_ms)) {
+extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_ms)) {
     try {
         CharCallback cb{"", nullptr, on_data};
         return start_backend(serial_number, get_ftdi_backend, &cb, 1);

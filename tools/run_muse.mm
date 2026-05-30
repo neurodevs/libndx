@@ -7,11 +7,11 @@
 static const char* MUSE_DEVICE_UUID = "CA6A61B7-B7A8-AF24-3C9E-04A6A5012554";
 static const char* CONTROL_CHAR_UUID = "273E0001-4C4D-454D-96BE-F03BAC821358";
 
-static void on_connected(const ndx::Peripheral* peripheral) {
+static void on_connected() {
   printf("Connected to peripheral\n");
 }
 
-static void on_char_data(const uint32_t* data, size_t len, double timestamp_ms) {
+static void on_char_data(const uint8_t* data, size_t len, double timestamp_ms) {
   printf("ts=%.0f", timestamp_ms);
   for (size_t i = 0; i < len; i++) printf(" %u", data[i]);
   printf("\n");

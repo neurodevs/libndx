@@ -60,7 +60,7 @@ struct BleFfiFixture {
   }
 
   nlohmann::json start() {
-    static CharCallback cb{"test-char", nullptr, [](const uint32_t*, size_t, double) {}};
+    static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
     const char* result = start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
     return nlohmann::json::parse(result);
   }
@@ -163,9 +163,9 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend calls start on backend") {
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when packet fires") {
   static ndx::Packet received;
 
-  static on_data_fn fn = [](const uint32_t* data, size_t len, double timestamp_ms) {
+  static on_data_fn fn = [](const uint8_t* data, size_t len, double timestamp_ms) {
     received = ndx::Packet{
-      std::vector<uint32_t>(data, data + len),
+      std::vector<uint8_t>(data, data + len),
       static_cast<uint64_t>(timestamp_ms)
     };
   };
@@ -174,15 +174,15 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when pac
   start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
   provider->simulate_packet({{42, 43}, 1000});
 
-  REQUIRE(received.data == std::vector<uint32_t>{42, 43});
+  REQUIRE(received.data == std::vector<uint8_t>{42, 43});
   REQUIRE(received.timestamp_ms == 1000);
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend routes multiple callbacks to their respective char UUIDs") {
   static int a_calls = 0, b_calls = 0;
   static CharCallback cbs[] = {
-    {"char-a", nullptr, [](const uint32_t*, size_t, double) { a_calls++; }},
-    {"char-b", nullptr, [](const uint32_t*, size_t, double) { b_calls++; }},
+    {"char-a", nullptr, [](const uint8_t*, size_t, double) { a_calls++; }},
+    {"char-b", nullptr, [](const uint8_t*, size_t, double) { b_calls++; }},
   };
 
   start_ble_backend(valid_uuid.c_str(), nullptr, cbs, 2);
@@ -268,8 +268,8 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected thro
 
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callback when connected") {
   static bool connected_called = false;
-  static ndx::OnConnectedCallback fn = [](const ndx::Peripheral*) { connected_called = true; };
-  static CharCallback cb{"test-char", nullptr, [](const uint32_t*, size_t, double) {}};
+  static on_connected_fn fn = []() { connected_called = true; };
+  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
   start_ble_backend(valid_uuid.c_str(), fn, &cb, 1);
   provider->simulate_connected();
