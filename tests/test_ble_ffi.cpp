@@ -266,13 +266,16 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected thro
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callback when connected") {
-  static bool connected_called = false;
-  static on_connected_fn fn = []() { connected_called = true; };
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callback with peripheral name") {
+  static std::string received_name;
+  static on_connected_fn fn = [](const Peripheral* p) {
+    received_name = p && p->name ? p->name : "";
+  };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
   start_ble_backend(valid_uuid.c_str(), fn, &cb, 1);
-  provider->simulate_connected();
+  ndx::Peripheral peripheral{"test-uuid", "Muse-1234"};
+  provider->simulate_connected(&peripheral);
 
-  REQUIRE(connected_called);
+  REQUIRE(received_name == "Muse-1234");
 }

@@ -12,7 +12,12 @@
 
 extern "C" {
 
-typedef void (*on_connected_fn)();
+struct Peripheral {
+  const char* uuid;
+  const char* name;
+};
+
+typedef void (*on_connected_fn)(const Peripheral*);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_ms);
 
 struct CharCallback {
