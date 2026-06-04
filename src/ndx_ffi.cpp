@@ -108,11 +108,23 @@ extern "C" char* write_ble_characteristic(const char* device_uuid, const char* c
     }
 }
 
-extern "C" char* read_ble_rssi(const char* device_uuid) {
+extern "C" char* set_ble_rssi_interval(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi) {
     try {
         auto backend = get_ble_backend(device_uuid);
-        int rssi = backend->read_rssi();
-        return to_ffi_result({{"status", 200}, {"rssi", rssi}});
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        backend->set_rssi_interval(interval_ms, [on_rssi](int rssi) { on_rssi(rssi); });
+        return to_ffi_result({{"status", 200}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
+}
+
+extern "C" char* stop_ble_rssi_interval(const char* device_uuid) {
+    try {
+        auto backend = get_ble_backend(device_uuid);
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        backend->stop_rssi_interval();
+        return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }

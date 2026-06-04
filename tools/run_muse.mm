@@ -11,6 +11,10 @@ static void on_connected(const Peripheral* p) {
   printf("Connected to peripheral: %s (%s)\n", p ? p->name : "", p ? p->uuid : "");
 }
 
+static void on_rssi(int rssi) {
+  printf("RSSI: %d\n", rssi);
+}
+
 static void on_char_data(const uint8_t* data, size_t len, double timestamp_ms) {
   printf("ts=%.0f", timestamp_ms);
   for (size_t i = 0; i < len; i++) printf(" %u", data[i]);
@@ -43,6 +47,7 @@ int main() {
 
   free(create_ble_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
   free(start_ble_backend(MUSE_DEVICE_UUID, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
+  free(set_ble_rssi_interval(MUSE_DEVICE_UUID, 1000, on_rssi));
 
   after(2.0, ^{ write_start_commands(); });
   after(4.0, ^{ free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });

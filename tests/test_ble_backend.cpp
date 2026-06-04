@@ -17,6 +17,8 @@ struct FakeBleProvider : ndx::BleProvider {
 
   bool is_powered_on() override { return powered_on; }
   int read_rssi() override { return 0; }
+  void set_rssi_interval(int, std::function<void(int)>) override {}
+  void stop_rssi_interval() override {}
   void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);

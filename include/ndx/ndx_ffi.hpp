@@ -19,6 +19,7 @@ struct Peripheral {
 
 typedef void (*on_connected_fn)(const Peripheral*);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_ms);
+typedef void (*on_rssi_fn)(int rssi);
 
 struct CharCallback {
   const char* char_uuid;  // required
@@ -29,7 +30,8 @@ struct CharCallback {
 char* create_ble_backend(const char* device_uuid);
 char* start_ble_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
-char* read_ble_rssi(const char* device_uuid);
+char* set_ble_rssi_interval(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi);
+char* stop_ble_rssi_interval(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);
 
 char* create_ftdi_backend(const char* serial_number);

@@ -22,6 +22,16 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   }
   int rssi = 0;
   int read_rssi() override { return rssi; }
+  bool rssi_interval_active = false;
+  int rssi_interval_ms = 0;
+  std::function<void(int)> on_rssi;
+  void set_rssi_interval(int interval_ms, std::function<void(int)> cb) override {
+    rssi_interval_active = true;
+    rssi_interval_ms = interval_ms;
+    on_rssi = std::move(cb);
+  }
+  void stop_rssi_interval() override { rssi_interval_active = false; }
+  void simulate_rssi(int value) { if (on_rssi) on_rssi(value); }
 
   std::string last_write_char_uuid;
   std::vector<uint8_t> last_write_data;
@@ -75,8 +85,14 @@ struct BleFfiFixture {
     return nlohmann::json::parse(result);
   }
 
-  nlohmann::json read_rssi() {
-    const char* result = read_ble_rssi(valid_uuid.c_str());
+  nlohmann::json set_rssi_interval(int interval_ms = 5000) {
+    static on_rssi_fn fn = [](int) {};
+    const char* result = set_ble_rssi_interval(valid_uuid.c_str(), interval_ms, fn);
+    return nlohmann::json::parse(result);
+  }
+
+  nlohmann::json stop_rssi_interval() {
+    const char* result = stop_ble_rssi_interval(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
@@ -88,7 +104,9 @@ struct BleFfiFixture {
         using ndx::BleBackend::BleBackend;
         void start(ndx::CharCallbacks, ndx::OnConnectedCallback) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
-        int read_rssi() override { throw std::runtime_error("internal server error"); }
+        int read_rssi() override { return 0; }
+        void set_rssi_interval(int, std::function<void(int)>) override { throw std::runtime_error("internal server error"); }
+        void stop_rssi_interval() override { throw std::runtime_error("internal server error"); }
         void write_characteristic(const std::string&, const uint8_t*, size_t) override {
           throw std::runtime_error("internal server error");
         }
@@ -225,21 +243,50 @@ TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 500 on unexpec
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "read_ble_rssi returns ok") {
-  auto json = read_rssi();
+TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval returns ok") {
+  auto json = BleFfiFixture::set_rssi_interval();
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "read_ble_rssi returns rssi from provider") {
-  provider->rssi = -75;
-  auto json = read_rssi();
-  REQUIRE(json["rssi"] == -75);
+TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval starts interval on provider with given ms") {
+  BleFfiFixture::set_rssi_interval(3000);
+  REQUIRE(provider->rssi_interval_active);
+  REQUIRE(provider->rssi_interval_ms == 3000);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "read_ble_rssi returns 500 on unexpected throw") {
+TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval invokes callback with rssi value") {
+  static int received = 0;
+  static on_rssi_fn fn = [](int rssi) { received = rssi; };
+  set_ble_rssi_interval(valid_uuid.c_str(), 1000, fn);
+  provider->simulate_rssi(-68);
+  REQUIRE(received == -68);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "set_ble_rssi_interval returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
-  auto json = read_rssi();
+  auto json = BleFfiFixture::set_rssi_interval();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_rssi_interval returns ok") {
+  BleFfiFixture::set_rssi_interval();
+  auto json = BleFfiFixture::stop_rssi_interval();
+  REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_rssi_interval stops interval on provider") {
+  BleFfiFixture::set_rssi_interval();
+  BleFfiFixture::stop_rssi_interval();
+  REQUIRE(!provider->rssi_interval_active);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "stop_ble_rssi_interval returns 500 on unexpected throw") {
+  set_throwing_factory();
+  create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  BleFfiFixture::set_rssi_interval();
+  auto json = BleFfiFixture::stop_rssi_interval();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }

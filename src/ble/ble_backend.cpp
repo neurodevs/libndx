@@ -30,6 +30,14 @@ int BleBackend::read_rssi() {
   return provider_->read_rssi();
 }
 
+void BleBackend::set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi) {
+  provider_->set_rssi_interval(interval_ms, std::move(on_rssi));
+}
+
+void BleBackend::stop_rssi_interval() {
+  provider_->stop_rssi_interval();
+}
+
 void BleBackend::write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) {
   provider_->write_characteristic(char_uuid, data, len);
 }

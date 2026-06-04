@@ -71,11 +71,38 @@ public:
     return rssi_;
   }
 
+  void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi) override {
+    on_rssi_ = std::move(on_rssi);
+    rssi_timer_active_ = true;
+    schedule_rssi_read(interval_ms);
+  }
+
+  void stop_rssi_interval() override {
+    rssi_timer_active_ = false;
+  }
+
+  void schedule_rssi_read(int interval_ms) {
+    if (!rssi_timer_active_) return;
+    dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval_ms) * NSEC_PER_MSEC),
+      dispatch_get_main_queue(),
+      ^{
+        if (!rssi_timer_active_) return;
+        if (delegate_.peripheral)
+          [delegate_.peripheral readRSSI];
+        schedule_rssi_read(interval_ms);
+      }
+    );
+  }
+
   void onStateUpdated() {
     if (state_sem_) dispatch_semaphore_signal(state_sem_);
   }
 
-  void onRssi(int rssi) { rssi_ = rssi; }
+  void onRssi(int rssi) {
+    rssi_ = rssi;
+    if (on_rssi_) on_rssi_(rssi);
+  }
 
   void onDiscoveredPeripheral(CBPeripheral* peripheral) {
     if (!peripheral_target_id_) return;
@@ -170,6 +197,8 @@ private:
   OnDataCallback on_advertisement_data_;
   ndx::OnConnectedCallback on_connected_;
   int rssi_ = 0;
+  bool rssi_timer_active_ = false;
+  std::function<void(int)> on_rssi_;
   std::unordered_map<std::string, CBCharacteristic*> characteristics_;
 };
 

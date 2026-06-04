@@ -12,6 +12,8 @@ public:
   void stop() override;
   void scan_all(int duration_ms, ScanResultCallback on_complete);
   virtual int read_rssi();
+  virtual void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi);
+  virtual void stop_rssi_interval();
   virtual void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len);
   std::string name() const override { return "BleBackend"; }
 
