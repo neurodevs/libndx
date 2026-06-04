@@ -298,9 +298,9 @@ TEST_CASE_METHOD(ValidBleFixture, "stop_ble_backend returns ok") {
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "stop_ble_backend calls stop on backend") {
+    auto backend = get_ble_backend(valid_uuid);
     BleFfiFixture::start();
     BleFfiFixture::stop();
-    auto backend = get_ble_backend(valid_uuid);
     REQUIRE(!backend->is_running());
 }
 
@@ -325,4 +325,13 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callba
   provider->simulate_connected(&peripheral);
 
   REQUIRE(received_name == "Muse-1234");
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend runs again after stop_ble_backend") {
+  create_and_parse_valid();
+  start();
+  stop();
+
+  auto json3 = create_and_parse_valid();
+  REQUIRE(json3["status"] == 200);
 }

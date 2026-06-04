@@ -132,7 +132,9 @@ extern "C" char* stop_ble_rssi_interval(const char* device_uuid) {
 
 extern "C" char* stop_ble_backend(const char* device_uuid)  {
     try {
-        return stop_backend(device_uuid, get_ble_backend); 
+        auto result = stop_backend(device_uuid, get_ble_backend);
+        g_ble_backends.erase(device_uuid);
+        return result;
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
