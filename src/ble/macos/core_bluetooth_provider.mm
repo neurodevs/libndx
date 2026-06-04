@@ -22,8 +22,8 @@ public:
   CoreBluetoothProvider() {
     state_sem_ = dispatch_semaphore_create(0);
     delegate_ = [[CoreBluetoothDelegate alloc] initWithProvider:this];
-    dispatch_queue_t queue = dispatch_queue_create("com.ndx.bluetooth", DISPATCH_QUEUE_SERIAL);
-    manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:queue];
+    ble_queue_ = dispatch_queue_create("com.ndx.bluetooth", DISPATCH_QUEUE_SERIAL);
+    manager_ = [[CBCentralManager alloc] initWithDelegate:delegate_ queue:ble_queue_];
     dispatch_semaphore_wait(state_sem_, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
     state_sem_ = nil;
   }
@@ -85,7 +85,7 @@ public:
     if (!rssi_timer_active_) return;
     dispatch_after(
       dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval_ms) * NSEC_PER_MSEC),
-      dispatch_get_main_queue(),
+      ble_queue_,
       ^{
         if (!rssi_timer_active_) return;
         if (delegate_.peripheral)
@@ -190,6 +190,7 @@ private:
 
   CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
+  dispatch_queue_t ble_queue_ = nil;
   dispatch_semaphore_t state_sem_ = nil;
   NSString* peripheral_target_id_ = nil;
   NSString* advertisement_target_id_ = nil;
