@@ -17,7 +17,7 @@ struct Peripheral {
   const char* name;
 };
 
-typedef void (*on_connected_fn)(const Peripheral*);
+typedef void (*on_connected_fn)(const char* uuid, const char* name);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_ms);
 typedef void (*on_rssi_fn)(int rssi);
 

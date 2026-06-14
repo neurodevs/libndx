@@ -81,8 +81,7 @@ extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_c
         }
         ndx::OnConnectedCallback cb = on_connected
             ? ndx::OnConnectedCallback([on_connected](const ndx::Peripheral* p) {
-                Peripheral ffi_p{p ? p->uuid.c_str() : nullptr, p ? p->name.c_str() : nullptr};
-                on_connected(&ffi_p);
+                on_connected(p ? p->uuid.c_str() : nullptr, p ? p->name.c_str() : nullptr);
               })
             : nullptr;
         backend->start(std::move(cbs), std::move(cb));
