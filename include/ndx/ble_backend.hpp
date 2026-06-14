@@ -10,7 +10,6 @@ public:
   explicit BleBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
   void start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected = nullptr) override;
   void stop() override;
-  void scan_all(int duration_ms, ScanResultCallback on_complete);
   virtual int read_rssi();
   virtual void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi);
   virtual void stop_rssi_interval();

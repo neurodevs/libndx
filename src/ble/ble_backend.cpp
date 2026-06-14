@@ -22,10 +22,6 @@ void BleBackend::stop() {
   provider_->disconnect_peripheral(device_id_);
 }
 
-void BleBackend::scan_all(int duration_ms, ScanResultCallback on_complete) {
-  provider_->scan_all(duration_ms, on_complete);
-}
-
 int BleBackend::read_rssi() {
   return provider_->read_rssi();
 }

@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
-#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "ndx/ndx_ffi.hpp"
@@ -15,10 +14,15 @@
 #include "ndx/ftdi_backend.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
+static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
 static std::unordered_map<std::string, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
 
 static BleFactory g_ble_factory = [](const std::string& device_uuid) {
     return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
+};
+
+static BleProviderFactory g_ble_provider_factory = []() {
+    return ndx::create_ble_provider();
 };
 
 std::shared_ptr<ndx::BleBackend> get_ble_backend(const std::string& device_uuid) {
@@ -43,12 +47,36 @@ static bool is_ftdi_registered(const std::string& serial_number) {
     return g_ftdi_backends.count(serial_number) > 0;
 }
 
+extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered) {
+    try {
+        std::string prefix = name_prefix;
+        auto provider = g_ble_provider_factory();
+        auto* prov = provider.get();
+        g_ble_scanners[prefix] = std::move(provider);
+        prov->discover_ble_uuid(prefix, [prefix, on_discovered](const std::string& uuid) {
+            auto it = g_ble_scanners.find(prefix);
+            if (it != g_ble_scanners.end()) {
+                g_ble_scanners[uuid] = std::move(it->second);
+                g_ble_scanners.erase(prefix);
+            }
+            if (on_discovered) on_discovered(uuid.c_str());
+        });
+        return to_ffi_result({{"status", 200}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
+}
+
 extern "C" char* create_ble_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
         if (j.is_discarded()) {
             return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        }
+
+        if (!j.contains("uuid") || !j["uuid"].is_string()) {
+            return to_ffi_result({{"status", 400}, {"error", "missing uuid"}});
         }
 
         std::string uuid = j["uuid"].get<std::string>();
@@ -61,7 +89,13 @@ extern "C" char* create_ble_backend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
         }
 
-        g_ble_backends[uuid] = g_ble_factory(uuid);
+        auto sit = g_ble_scanners.find(uuid);
+        if (sit != g_ble_scanners.end()) {
+            g_ble_backends[uuid] = std::make_shared<ndx::BleBackend>(uuid, std::move(sit->second));
+            g_ble_scanners.erase(sit);
+        } else {
+            g_ble_backends[uuid] = g_ble_factory(uuid);
+        }
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
@@ -185,9 +219,11 @@ extern "C" char* stop_ftdi_backend(const char* serial_number) {
 
 void reset_ble_backends() {
     g_ble_backends.clear();
+    g_ble_scanners.clear();
     g_ble_factory = [](const std::string& device_uuid) {
         return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
     };
+    g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
 }
 
 void reset_ftdi_backends() {
@@ -199,6 +235,10 @@ void reset_ftdi_backends() {
 
 void set_ble_factory(BleFactory factory) {
     g_ble_factory = factory;
+}
+
+void set_ble_provider_factory(BleProviderFactory factory) {
+    g_ble_provider_factory = factory;
 }
 
 void set_ftdi_factory(FtdiFactory factory) {

@@ -7,7 +7,6 @@
 struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
   std::string scan_requested_for;
-  std::vector<ndx::PeripheralInfo> scan_all_results;
   std::string disconnect_requested_for;
 
   std::string last_write_char_uuid;
@@ -27,9 +26,7 @@ struct FakeBleProvider : ndx::BleProvider {
     scan_requested_for = uuid;
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
-  void scan_all(int duration_ms, ndx::ScanResultCallback cb) override {
-    cb(scan_all_results);
-  }
+  void discover_ble_uuid(const std::string&, std::function<void(const std::string&)>) override {}
   void disconnect_peripheral(const std::string& uuid) override {
     disconnect_requested_for = uuid;
   }
@@ -128,25 +125,6 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is n
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with device_id") {
   start();
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
-}
-
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend scan_all returns discovered peripherals") {
-  provider->scan_all_results = {
-    {"AA:BB:CC:DD:EE:FF", "Muse-1234"},
-    {"11:22:33:44:55:66", "Muse-5678"},
-  };
-
-  std::vector<ndx::PeripheralInfo> results;
-
-  backend.scan_all(5000, [&](const std::vector<ndx::PeripheralInfo>& r) {
-    results = r;
-  });
-
-  REQUIRE(results.size() == 2);
-  REQUIRE(results[0].uuid == "AA:BB:CC:DD:EE:FF");
-  REQUIRE(results[0].name == "Muse-1234");
-  REQUIRE(results[1].uuid == "11:22:33:44:55:66");
-  REQUIRE(results[1].name == "Muse-5678");
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect false") {

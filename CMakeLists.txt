@@ -15,6 +15,8 @@ set(NDX_SOURCES
 
 if(APPLE)
   list(APPEND NDX_SOURCES src/ble/macos/core_bluetooth_provider.mm)
+  set_source_files_properties(src/ble/macos/core_bluetooth_provider.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 else()
   list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
 endif()
@@ -98,4 +100,7 @@ if(APPLE)
 
   add_executable(run_muse tools/run_muse.mm)
   target_link_libraries(run_muse PRIVATE ndx)
+
+  add_executable(discover_muse tools/discover_muse.mm)
+  target_link_libraries(discover_muse PRIVATE ndx)
 endif()

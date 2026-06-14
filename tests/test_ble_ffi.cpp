@@ -13,7 +13,15 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
     on_connected = std::move(connected);
   }
-  void scan_all(int, ndx::ScanResultCallback) override {}
+  bool discover_ble_uuid_called = false;
+  std::function<void(const std::string&)> discover_ble_uuid_callback;
+  void discover_ble_uuid(const std::string&, std::function<void(const std::string&)> cb) override {
+    discover_ble_uuid_called = true;
+    discover_ble_uuid_callback = std::move(cb);
+  }
+  void simulate_discovery(const std::string& uuid) {
+    if (discover_ble_uuid_callback) discover_ble_uuid_callback(uuid);
+  }
   void simulate_packet(const ndx::Packet& p) {
     for (auto& [uuid, cb] : callbacks) cb(p);
   }
@@ -337,4 +345,56 @@ TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend runs again after stop_ble_
 
   auto json3 = create_and_parse_valid();
   REQUIRE(json3["status"] == 200);
+}
+
+// Auto-discover tests
+
+struct AutoDiscoverFixture : BleFfiFixture {
+  static constexpr const char* name_prefix = "Muse";
+  static constexpr const char* discovered_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
+
+  AutoDiscoverFixture() {
+    set_ble_provider_factory([this]() {
+      auto p = std::make_unique<AlwaysOnBleProvider>();
+      provider = p.get();
+      return p;
+    });
+  }
+
+  nlohmann::json start_discover(on_discovered_fn cb = nullptr) {
+    const char* result = discover_ble_uuid(name_prefix, cb);
+    return nlohmann::json::parse(result);
+  }
+
+  void simulate_discovery(const std::string& uuid = discovered_uuid) {
+    provider->simulate_discovery(uuid);
+  }
+};
+
+TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid returns 200 immediately") {
+  auto json = start_discover();
+  REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid calls discover_ble_uuid on provider") {
+  start_discover();
+  REQUIRE(provider != nullptr);
+  REQUIRE(provider->discover_ble_uuid_called);
+}
+
+TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid invokes on_discovered with discovered uuid") {
+  static std::string received_uuid;
+  received_uuid = "";
+  static on_discovered_fn cb = [](const char* uuid) { received_uuid = uuid; };
+
+  start_discover(cb);
+  REQUIRE(provider != nullptr);
+  simulate_discovery();
+
+  REQUIRE(received_uuid == discovered_uuid);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 400 if uuid missing from json") {
+  auto json = nlohmann::json::parse(create_ble_backend("{}"));
+  REQUIRE(json["status"] == 400);
 }
