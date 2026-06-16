@@ -27,6 +27,7 @@ struct Peripheral {
 };
 
 using OnConnectedCallback = std::function<void(const Peripheral*)>;
+using OnDataCallback = std::function<void(const Packet&)>;
 
 
 class AcquisitionBackend {
