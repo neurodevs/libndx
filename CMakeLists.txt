@@ -10,7 +10,7 @@ set(NDX_SOURCES
   src/ndx_ffi.cpp
   src/acquisition_backend.cpp
   src/ble/ble_backend.cpp
-  src/bt/bt_backend.cpp
+  src/bluetooth/bluetooth_backend.cpp
   src/ftdi/ftdi_backend.cpp
 )
 
@@ -63,7 +63,7 @@ add_executable(ndx_tests
   tests/test_ble_backend.cpp
   tests/test_ble_ffi.cpp
   tests/test_ble_provider.cpp
-  tests/test_bt_backend.cpp
+  tests/test_bluetooth_backend.cpp
   tests/test_ftdi_backend.cpp
   tests/test_ftdi_ffi.cpp
 )

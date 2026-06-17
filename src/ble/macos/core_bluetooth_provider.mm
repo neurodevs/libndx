@@ -48,7 +48,7 @@ public:
       if (manager_.state == CBManagerStatePoweredOn) {
         [manager_ scanForPeripheralsWithServices:nil options:nil];
       }
-      // else: onStateUpdated will start the scan when BT becomes ready
+      // else: onStateUpdated will start the scan when Bluetooth becomes ready
     });
   }
 

@@ -5,9 +5,9 @@
 
 namespace ndx {
 
-class BtProvider {
+class BluetoothProvider {
 public:
-  virtual ~BtProvider() = default;
+  virtual ~BluetoothProvider() = default;
   virtual bool is_powered_on() = 0;
   virtual void connect(const std::string& address, int port,
                        OnDataCallback on_data,
