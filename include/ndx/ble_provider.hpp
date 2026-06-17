@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "ndx/acquisition_backend.hpp"
+#include "ndx/ble_types.hpp"
 
 namespace ndx {
 

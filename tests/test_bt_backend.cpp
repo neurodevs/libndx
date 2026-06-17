@@ -90,9 +90,3 @@ TEST_CASE_METHOD(BtBackendFixture, "BtBackend invokes callback when packet recei
   REQUIRE(called);
 }
 
-TEST_CASE_METHOD(BtBackendFixture, "BtBackend start with CharCallbacks throws") {
-  REQUIRE_THROWS_WITH(
-    backend.start(ndx::CharCallbacks{}),
-    "BtBackend: use start(OnDataCallback) for serial Bluetooth"
-  );
-}

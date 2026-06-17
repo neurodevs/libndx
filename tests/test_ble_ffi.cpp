@@ -25,7 +25,7 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void simulate_packet(const ndx::Packet& p) {
     for (auto& [uuid, cb] : callbacks) cb(p);
   }
-  void simulate_connected(ndx::Peripheral* peripheral = nullptr) {
+  void simulate_connected(ndx::Device* peripheral = nullptr) {
     if (on_connected) on_connected(peripheral);
   }
   int rssi = 0;
@@ -331,7 +331,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callba
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
   start_ble_backend(valid_uuid.c_str(), fn, &cb, 1);
-  ndx::Peripheral peripheral{"test-uuid", "Muse-1234"};
+  ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
   provider->simulate_connected(&peripheral);
 
   REQUIRE(received_uuid == "test-uuid");

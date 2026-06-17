@@ -2,7 +2,6 @@
 #include <functional>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,20 +12,12 @@ struct Packet {
   std::uint64_t timestamp_ms;
 };
 
-struct CharCallbackEntry {
-  std::string char_uuid;
-  std::optional<std::string> char_name;
-  std::function<void(const Packet&)> on_data;
-};
-
-using CharCallbacks = std::vector<CharCallbackEntry>;
-
-struct Peripheral {
-  std::string uuid;
+struct Device {
+  std::string id;
   std::string name;
 };
 
-using OnConnectedCallback = std::function<void(const Peripheral*)>;
+using OnConnectedCallback = std::function<void(const Device*)>;
 using OnDataCallback = std::function<void(const Packet&)>;
 
 
@@ -34,7 +25,7 @@ class AcquisitionBackend {
 public:
   explicit AcquisitionBackend(const std::string& device_id);
   virtual ~AcquisitionBackend() = default;
-  virtual void start(CharCallbacks callbacks, OnConnectedCallback on_connected = nullptr);
+  virtual void start();
   virtual void stop();
   bool is_running() const { return is_running_; }
   const std::string& device_id() const { return device_id_; }

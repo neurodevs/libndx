@@ -1,6 +1,7 @@
 #pragma once
 #include "acquisition_backend.hpp"
 #include "ble_provider.hpp"
+#include "ble_types.hpp"
 #include <string>
 
 namespace ndx {
@@ -8,7 +9,7 @@ namespace ndx {
 class BleBackend : public AcquisitionBackend {
 public:
   explicit BleBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
-  void start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected = nullptr) override;
+  virtual void start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected = nullptr);
   void stop() override;
   virtual int read_rssi();
   virtual void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi);

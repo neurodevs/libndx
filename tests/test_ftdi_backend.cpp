@@ -1,22 +1,19 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
-#include <unordered_map>
-#include "ndx/acquisition_backend.hpp"
 #include "ndx/ftdi_backend.hpp"
 
 struct TestableFtdiBackend : ndx::FtdiBackend {
   using ndx::FtdiBackend::FtdiBackend;
 
-  std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
+  ndx::OnDataCallback on_data_cb;
 
-  void start(ndx::CharCallbacks cbs, ndx::OnConnectedCallback on_connected = nullptr) override {
-    ndx::FtdiBackend::start(cbs, on_connected);
-    for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+  void start(ndx::OnDataCallback on_data, ndx::OnConnectedCallback on_connected = nullptr) override {
+    ndx::FtdiBackend::start(on_data, on_connected);
+    on_data_cb = std::move(on_data);
   }
 
-  void simulate_packet(const ndx::Packet& p, const std::string& char_uuid = "") {
-    auto it = callbacks.find(char_uuid);
-    if (it != callbacks.end()) it->second(p);
+  void simulate_packet(const ndx::Packet& p) {
+    if (on_data_cb) on_data_cb(p);
   }
 };
 
@@ -24,7 +21,7 @@ struct FtdiBackendFixture {
   TestableFtdiBackend backend{ "ABCD1234" };
 
   void start() {
-    backend.start({{"", std::nullopt, [](const ndx::Packet&) {}}});
+    backend.start([](const ndx::Packet&) {});
   }
 
   void stop() {
@@ -44,7 +41,7 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true"
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend invokes callback when packet received") {
   bool called = false;
-  backend.start({{"", std::nullopt, [&](const ndx::Packet&) { called = true; }}});
+  backend.start([&](const ndx::Packet&) { called = true; });
   backend.simulate_packet(ndx::Packet{});
   REQUIRE(called);
 }

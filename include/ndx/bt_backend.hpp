@@ -10,7 +10,6 @@ public:
   explicit BtBackend(const std::string& device_address, int port,
                      std::unique_ptr<BtProvider> provider);
   void start(OnDataCallback on_data, OnConnectedCallback on_connected = nullptr);
-  void start(CharCallbacks callbacks, OnConnectedCallback on_connected = nullptr) override;
   void stop() override;
   std::string name() const override { return "BtBackend"; }
 

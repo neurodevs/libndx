@@ -8,7 +8,7 @@ BleBackend::BleBackend(const std::string& device_id, std::unique_ptr<BleProvider
     : AcquisitionBackend(device_id), provider_(std::move(provider)) {}
 
 void BleBackend::start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected) {
-  AcquisitionBackend::start(callbacks);
+  AcquisitionBackend::start();
 
   if (!provider_->is_powered_on()) {
     throw std::runtime_error("BleBackend: Bluetooth is not powered on");

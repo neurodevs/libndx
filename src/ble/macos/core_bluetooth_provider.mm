@@ -164,9 +164,9 @@ public:
     peripheral.delegate = delegate_;
     [peripheral discoverServices:nil];
     if (on_connected_) {
-      Peripheral p{
-        peripheral.identifier.UUIDString.UTF8String,
-        peripheral.name ? peripheral.name.UTF8String : ""
+      Device p{
+        .id = peripheral.identifier.UUIDString.UTF8String,
+        .name = peripheral.name ? peripheral.name.UTF8String : ""
       };
       on_connected_(&p);
       on_connected_ = nullptr;
