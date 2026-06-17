@@ -15,8 +15,8 @@ set(NDX_SOURCES
 )
 
 if(APPLE)
-  list(APPEND NDX_SOURCES src/ble/macos/core_bluetooth_provider.mm)
-  set_source_files_properties(src/ble/macos/core_bluetooth_provider.mm
+  list(APPEND NDX_SOURCES src/platform/macos/core_bluetooth_provider.mm)
+  set_source_files_properties(src/platform/macos/core_bluetooth_provider.mm
     PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 else()
   list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
