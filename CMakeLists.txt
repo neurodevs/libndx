@@ -105,4 +105,10 @@ if(APPLE)
 
   add_executable(discover_muse tools/discover_muse.mm)
   target_link_libraries(discover_muse PRIVATE ndx)
+
+  add_executable(run_zephyr tools/run_zephyr.mm)
+  target_link_libraries(run_zephyr PRIVATE
+    "-framework Foundation"
+    "-framework IOBluetooth"
+  )
 endif()
