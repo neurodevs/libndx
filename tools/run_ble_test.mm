@@ -310,9 +310,9 @@ didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic
 
   // Print 12 inter-sample intervals: boundary + 11 within-chunk
   if (_prevEegLastTs > 0) {
-    printf("  %f\n", (corrected[0] - _prevEegLastTs) * 1000.0);
+    printf("  %f\n", (corrected[0] - _prevEegLastTs));
     for (int i = 1; i < 12; i++)
-      printf("  %f\n", (corrected[i] - corrected[i - 1]) * 1000.0);
+      printf("  %f\n", (corrected[i] - corrected[i - 1]));
   }
   _prevEegLastTs = corrected[11];
 
@@ -353,8 +353,8 @@ didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic
     corrected[i] = _ppgRate * (double)(_ppgSampleIndex + i) + _ppgT0;
 
   if (_prevPpgArrival > 0) {
-    double rawInterval       = (earliest - _prevPpgArrival) * 1000.0;
-    double correctedInterval = (corrected[0] - (_ppgRate * (double)(_ppgSampleIndex - 6) + _ppgT0)) * 1000.0;
+    double rawInterval       = (earliest - _prevPpgArrival);
+    double correctedInterval = (corrected[0] - (_ppgRate * (double)(_ppgSampleIndex - 6) + _ppgT0));
     printf("PPG  raw: %6.2f ms  corrected: %6.3f ms  (expected 93.750)\n",
            rawInterval, correctedInterval);
   }

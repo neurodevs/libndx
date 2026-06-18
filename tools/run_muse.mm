@@ -15,8 +15,8 @@ static void on_rssi(int rssi) {
   printf("RSSI: %d\n", rssi);
 }
 
-static void on_char_data(const uint8_t* data, size_t len, double timestamp_ms) {
-  printf("ts=%.0f", timestamp_ms);
+static void on_char_data(const uint8_t* data, size_t len, double timestamp_sec) {
+  printf("ts=%.6f", timestamp_sec);
   for (size_t i = 0; i < len; i++) printf(" %u", data[i]);
   printf("\n");
 }
@@ -49,9 +49,9 @@ int main() {
   free(start_ble_backend(MUSE_DEVICE_UUID, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
   free(set_ble_rssi_interval(MUSE_DEVICE_UUID, 1000, on_rssi));
 
-  after(2.0, ^{ write_start_commands(); });
-  after(4.0, ^{ free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });
-  after(6.0, ^{ free(stop_ble_backend(MUSE_DEVICE_UUID)); exit(0); });
+  after(5.0, ^{ write_start_commands(); });
+  after(10.0, ^{ free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });
+  after(12.0, ^{ free(stop_ble_backend(MUSE_DEVICE_UUID)); exit(0); });
 
   [[NSRunLoop currentRunLoop] run];
   return 0;

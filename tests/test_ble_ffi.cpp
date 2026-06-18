@@ -187,21 +187,34 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend calls start on backend") {
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when packet fires") {
-  static ndx::Packet received;
+  static double received_timestamp_sec = 0.0;
+  static std::vector<uint8_t> received_data;
 
-  static on_data_fn fn = [](const uint8_t* data, size_t len, double timestamp_ms) {
-    received = ndx::Packet{
-      std::vector<uint8_t>(data, data + len),
-      static_cast<uint64_t>(timestamp_ms)
-    };
+  static on_data_fn fn = [](const uint8_t* data, size_t len, double timestamp_sec) {
+    received_data.assign(data, data + len);
+    received_timestamp_sec = timestamp_sec;
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
   start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
-  provider->simulate_packet({{42, 43}, 1000});
+  provider->simulate_packet({{42, 43}, 1.0});
 
-  REQUIRE(received.data == std::vector<uint8_t>{42, 43});
-  REQUIRE(received.timestamp_ms == 1000);
+  REQUIRE(received_data == std::vector<uint8_t>{42, 43});
+  REQUIRE(received_timestamp_sec == Catch::Approx(1.0));
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend preserves sub-millisecond timestamp precision") {
+  static double received_timestamp_sec = 0.0;
+
+  static on_data_fn fn = [](const uint8_t*, size_t, double timestamp_sec) {
+    received_timestamp_sec = timestamp_sec;
+  };
+  static CharCallback cb{"test-char", nullptr, fn};
+
+  start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+  provider->simulate_packet({{}, 1750123456.7891234});
+
+  REQUIRE(received_timestamp_sec == Catch::Approx(1750123456.7891234).epsilon(1e-9));
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend routes multiple callbacks to their respective char UUIDs") {

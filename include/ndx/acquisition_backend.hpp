@@ -9,7 +9,7 @@ namespace ndx {
 
 struct Packet {
   std::vector<uint8_t> data;
-  std::uint64_t timestamp_ms;
+  double timestamp_sec;
 };
 
 struct Device {

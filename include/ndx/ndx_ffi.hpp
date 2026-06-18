@@ -13,7 +13,7 @@
 extern "C" {
 
 typedef void (*on_connected_fn)(const char* uuid, const char* name);
-typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_ms);
+typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_sec);
 typedef void (*on_rssi_fn)(int rssi);
 typedef void (*on_discovered_fn)(const char* uuid);
 
@@ -32,7 +32,7 @@ char* stop_ble_rssi_interval(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);
 
 char* create_ftdi_backend(const char* serial_number);
-char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_ms));
+char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec));
 char* stop_ftdi_backend(const char* serial_number);
 
 }

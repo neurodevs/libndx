@@ -63,13 +63,11 @@ public:
     if (!advertisement_target_id_) return;
     if (![peripheral.identifier.UUIDString isEqualToString:advertisement_target_id_]) return;
 
-    uint64_t timestamp_ms = static_cast<uint64_t>(lsl_local_clock() * 1000.0);
-
     NSData* mfgData = advertisementData[CBAdvertisementDataManufacturerDataKey];
     if (!mfgData || mfgData.length < 4) return;
 
     Packet packet;
-    packet.timestamp_ms = timestamp_ms;
+    packet.timestamp_sec = lsl_local_clock();
     const uint8_t* words = static_cast<const uint8_t*>(mfgData.bytes);
     packet.data.assign(words, words + mfgData.length);
     on_advertisement_data_(packet);
@@ -203,10 +201,9 @@ public:
     auto it = char_callbacks_.find(uuid);
     if (it == char_callbacks_.end()) return;
 
-    uint64_t timestamp_ms = static_cast<uint64_t>(lsl_local_clock() * 1000.0);
     NSData* data = characteristic.value;
     Packet packet;
-    packet.timestamp_ms = timestamp_ms;
+    packet.timestamp_sec = lsl_local_clock();
     const uint8_t* bytes = static_cast<const uint8_t*>(data.bytes);
     packet.data.assign(bytes, bytes + data.length);
     it->second(packet);

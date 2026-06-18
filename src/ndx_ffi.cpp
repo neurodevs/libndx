@@ -110,7 +110,7 @@ extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_c
         for (size_t i = 0; i < num_callbacks; ++i) {
             auto& c = callbacks[i];
             cbs.push_back({c.char_uuid ? c.char_uuid : "", c.char_name ? c.char_name : "", [fn = c.callback](const ndx::Packet& p) {
-                fn(p.data.data(), p.data.size(), static_cast<double>(p.timestamp_ms));
+                fn(p.data.data(), p.data.size(), p.timestamp_sec);
             }});
         }
         ndx::OnConnectedCallback cb = on_connected
@@ -198,7 +198,7 @@ extern "C" char* create_ftdi_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_ms)) {
+extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec)) {
     try {
         auto backend = get_ftdi_backend(serial_number);
         if (backend) {
