@@ -6,7 +6,6 @@ namespace {
 
 class NullFtdiProvider : public FtdiProvider {
 public:
-  bool is_powered_on() override { return true; }
   void connect(const std::string&, OnDataCallback, OnConnectedCallback) override {}
   void disconnect() override {}
 };

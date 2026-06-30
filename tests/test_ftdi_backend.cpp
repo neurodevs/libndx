@@ -4,12 +4,9 @@
 #include "ndx/ftdi_provider.hpp"
 
 struct FakeFtdiProvider : ndx::FtdiProvider {
-  bool powered_on = true;
   std::string connect_requested_for;
   bool disconnect_called = false;
   ndx::OnDataCallback captured_on_data;
-
-  bool is_powered_on() override { return powered_on; }
 
   void connect(const std::string& device_id,
                ndx::OnDataCallback on_data,

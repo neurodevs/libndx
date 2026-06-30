@@ -8,7 +8,6 @@ namespace ndx {
 class FtdiProvider {
 public:
   virtual ~FtdiProvider() = default;
-  virtual bool is_powered_on() = 0;
   virtual void connect(const std::string& device_id,
                        OnDataCallback on_data,
                        OnConnectedCallback on_connected) = 0;
