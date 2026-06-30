@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
+#include "ndx/ftdi_provider.hpp"
 
 struct FtdiFfiFixture {
   std::string valid_serial;
@@ -33,7 +34,7 @@ struct FtdiFfiFixture {
         void start(ndx::OnDataCallback, ndx::OnConnectedCallback) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
       };
-      return std::make_shared<ThrowingFtdiBackend>(uuid);
+      return std::make_shared<ThrowingFtdiBackend>(uuid, ndx::create_ftdi_provider());
     });
   }
 };

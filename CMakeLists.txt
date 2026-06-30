@@ -12,6 +12,7 @@ set(NDX_SOURCES
   src/ble/ble_backend.cpp
   src/bluetooth/bluetooth_backend.cpp
   src/ftdi/ftdi_backend.cpp
+  src/ftdi/ftdi_provider.cpp
 )
 
 if(APPLE)

@@ -1,24 +1,37 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
 #include "ndx/ftdi_backend.hpp"
+#include "ndx/ftdi_provider.hpp"
 
-struct TestableFtdiBackend : ndx::FtdiBackend {
-  using ndx::FtdiBackend::FtdiBackend;
+struct FakeFtdiProvider : ndx::FtdiProvider {
+  bool powered_on = true;
+  std::string connect_requested_for;
+  bool disconnect_called = false;
+  ndx::OnDataCallback captured_on_data;
 
-  ndx::OnDataCallback on_data_cb;
+  bool is_powered_on() override { return powered_on; }
 
-  void start(ndx::OnDataCallback on_data, ndx::OnConnectedCallback on_connected = nullptr) override {
-    ndx::FtdiBackend::start(on_data, on_connected);
-    on_data_cb = std::move(on_data);
+  void connect(const std::string& device_id,
+               ndx::OnDataCallback on_data,
+               ndx::OnConnectedCallback) override {
+    connect_requested_for = device_id;
+    captured_on_data = std::move(on_data);
   }
 
+  void disconnect() override { disconnect_called = true; }
+
   void simulate_packet(const ndx::Packet& p) {
-    if (on_data_cb) on_data_cb(p);
+    if (captured_on_data) captured_on_data(p);
   }
 };
 
 struct FtdiBackendFixture {
-  TestableFtdiBackend backend{ "ABCD1234" };
+  FakeFtdiProvider* provider;
+  ndx::FtdiBackend backend;
+
+  FtdiBackendFixture()
+    : provider(new FakeFtdiProvider()),
+      backend("ABCD1234", std::unique_ptr<ndx::FtdiProvider>(provider)) {}
 
   void start() {
     backend.start([](const ndx::Packet&) {});
@@ -42,8 +55,13 @@ TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start sets is_running to true"
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend invokes callback when packet received") {
   bool called = false;
   backend.start([&](const ndx::Packet&) { called = true; });
-  backend.simulate_packet(ndx::Packet{});
+  provider->simulate_packet(ndx::Packet{});
   REQUIRE(called);
+}
+
+TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend start connects with device id") {
+  start();
+  REQUIRE(provider->connect_requested_for == "ABCD1234");
 }
 
 TEST_CASE_METHOD(FtdiBackendFixture, "FtdiBackend stop sets is_running to false") {

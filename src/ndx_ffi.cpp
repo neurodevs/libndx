@@ -12,6 +12,7 @@
 #include "ndx/ble_backend.hpp"
 #include "ndx/ble_provider.hpp"
 #include "ndx/ftdi_backend.hpp"
+#include "ndx/ftdi_provider.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
@@ -35,7 +36,7 @@ static bool is_ble_registered(const std::string& device_uuid) {
 }
 
 static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
-    return std::make_shared<ndx::FtdiBackend>(serial_number);
+    return std::make_shared<ndx::FtdiBackend>(serial_number, ndx::create_ftdi_provider());
 };
 
 std::shared_ptr<ndx::FtdiBackend> get_ftdi_backend(const std::string& serial_number) {
@@ -232,7 +233,7 @@ void reset_ble_backends() {
 void reset_ftdi_backends() {
     g_ftdi_backends.clear();
     g_ftdi_factory = [](const std::string& serial_number) {
-        return std::make_shared<ndx::FtdiBackend>(serial_number);
+        return std::make_shared<ndx::FtdiBackend>(serial_number, ndx::create_ftdi_provider());
     };
 }
 
