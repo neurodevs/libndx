@@ -29,9 +29,11 @@ public:
   }
 
   ~CoreBluetoothProvider() {
-    dispatch_sync(ble_queue_, ^{
-      manager_.delegate = nil;
-      [manager_ stopScan];
+    CBCentralManager* manager = manager_;
+    dispatch_queue_t queue = ble_queue_;
+    dispatch_async(queue, ^{
+      manager.delegate = nil;
+      [manager stopScan];
     });
   }
 
@@ -87,31 +89,35 @@ public:
   }
 
   int read_rssi() override {
-    if (delegate_.peripheral)
-      [delegate_.peripheral readRSSI];
+    CBPeripheral* peripheral = delegate_.peripheral;
+    dispatch_async(ble_queue_, ^{
+      [peripheral readRSSI];
+    });
     return rssi_;
   }
 
   void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi) override {
     on_rssi_ = std::move(on_rssi);
     rssi_timer_active_ = true;
-    schedule_rssi_read(interval_ms);
+    uint64_t generation = ++rssi_generation_;
+    schedule_rssi_read(interval_ms, generation);
   }
 
   void stop_rssi_interval() override {
     rssi_timer_active_ = false;
+    ++rssi_generation_;
   }
 
-  void schedule_rssi_read(int interval_ms) {
-    if (!rssi_timer_active_) return;
+  void schedule_rssi_read(int interval_ms, uint64_t generation) {
+    if (!rssi_timer_active_ || generation != rssi_generation_) return;
     dispatch_after(
       dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval_ms) * NSEC_PER_MSEC),
       ble_queue_,
       ^{
-        if (!rssi_timer_active_) return;
+        if (!rssi_timer_active_ || generation != rssi_generation_) return;
         if (delegate_.peripheral)
           [delegate_.peripheral readRSSI];
-        schedule_rssi_read(interval_ms);
+        schedule_rssi_read(interval_ms, generation);
       }
     );
   }
@@ -191,9 +197,13 @@ public:
     auto it = characteristics_.find(char_uuid);
     if (it == characteristics_.end()) return;
     NSData* nsdata = [NSData dataWithBytes:data length:len];
-    [delegate_.peripheral writeValue:nsdata
-                   forCharacteristic:it->second
-                                type:CBCharacteristicWriteWithoutResponse];
+    CBCharacteristic* characteristic = it->second;
+    CBPeripheral* peripheral = delegate_.peripheral;
+    dispatch_async(ble_queue_, ^{
+      [peripheral writeValue:nsdata
+           forCharacteristic:characteristic
+                        type:CBCharacteristicWriteWithoutResponse];
+    });
   }
 
   void onCharacteristicValue(CBCharacteristic* characteristic) {
@@ -212,7 +222,20 @@ public:
   void disconnect_peripheral(const std::string& uuid) override {
     if (!delegate_.peripheral) return;
     if (![delegate_.peripheral.identifier.UUIDString isEqualToString:[NSString stringWithUTF8String:uuid.c_str()]]) return;
-    [manager_ cancelPeripheralConnection:delegate_.peripheral];
+    CBPeripheral* peripheral = delegate_.peripheral;
+    CBCentralManager* manager = manager_;
+    dispatch_async(ble_queue_, ^{
+      [manager cancelPeripheralConnection:peripheral];
+    });
+  }
+
+  void onDisconnectedPeripheral(CBPeripheral* peripheral) {
+    if (delegate_.peripheral == peripheral) {
+      delegate_.peripheral = nil;
+    }
+    characteristics_.clear();
+    rssi_timer_active_ = false;
+    ++rssi_generation_;
   }
 
 private:
@@ -237,6 +260,7 @@ private:
   ndx::OnConnectedCallback on_connected_;
   int rssi_ = 0;
   bool rssi_timer_active_ = false;
+  uint64_t rssi_generation_ = 0;
   std::function<void(int)> on_rssi_;
   std::unordered_map<std::string, CBCharacteristic*> characteristics_;
 };
@@ -275,6 +299,12 @@ std::unique_ptr<BleProvider> create_ble_provider() {
 - (void)centralManager:(CBCentralManager*)central
   didConnectPeripheral:(CBPeripheral*)peripheral {
   _provider->onConnectedPeripheral(peripheral);
+}
+
+- (void)centralManager:(CBCentralManager*)central
+didDisconnectPeripheral:(CBPeripheral*)peripheral
+                  error:(NSError*)error {
+  _provider->onDisconnectedPeripheral(peripheral);
 }
 
 - (void)peripheral:(CBPeripheral*)peripheral
