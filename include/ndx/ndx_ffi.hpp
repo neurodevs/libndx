@@ -8,7 +8,7 @@
 
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_backend.hpp"
-#include "ndx/ftdi_backend.hpp"
+#include "ndx/usb_backend.hpp"
 
 extern "C" {
 
@@ -32,22 +32,22 @@ char* set_ble_rssi_interval(const char* device_uuid, int interval_ms, on_rssi_fn
 char* stop_ble_rssi_interval(const char* device_uuid);
 char* stop_ble_backend(const char* device_uuid);
 
-char* create_ftdi_backend(const char* serial_number);
-char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec));
-char* stop_ftdi_backend(const char* serial_number);
+char* create_usb_backend(const char* serial_number);
+char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec));
+char* stop_usb_backend(const char* serial_number);
 
 }
 
 using BleFactory = std::function<std::shared_ptr<ndx::BleBackend>(const std::string&)>;
 using BleProviderFactory = std::function<std::unique_ptr<ndx::BleProvider>()>;
-using FtdiFactory = std::function<std::shared_ptr<ndx::FtdiBackend>(const std::string&)>;
+using UsbFactory = std::function<std::shared_ptr<ndx::UsbBackend>(const std::string&)>;
 
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleBackend> get_ble_backend(const std::string& device_uuid);
-std::shared_ptr<ndx::FtdiBackend> get_ftdi_backend(const std::string& serial_number);
+std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number);
 void reset_ble_backends();
-void reset_ftdi_backends();
+void reset_usb_backends();
 void set_ble_factory(BleFactory factory);
 void set_ble_provider_factory(BleProviderFactory factory);
-void set_ftdi_factory(FtdiFactory factory);
+void set_usb_factory(UsbFactory factory);
 #endif

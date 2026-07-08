@@ -5,15 +5,15 @@
 
 namespace ndx {
 
-class FtdiProvider {
+class UsbProvider {
 public:
-  virtual ~FtdiProvider() = default;
+  virtual ~UsbProvider() = default;
   virtual void connect(const std::string& device_id,
                        OnDataCallback on_data,
                        OnConnectedCallback on_connected) = 0;
   virtual void disconnect() = 0;
 };
 
-std::unique_ptr<FtdiProvider> create_ftdi_provider();
+std::unique_ptr<UsbProvider> create_usb_provider();
 
 }

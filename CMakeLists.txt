@@ -11,8 +11,8 @@ set(NDX_SOURCES
   src/acquisition_backend.cpp
   src/ble/ble_backend.cpp
   src/bluetooth/bluetooth_backend.cpp
-  src/ftdi/ftdi_backend.cpp
-  src/ftdi/ftdi_provider.cpp
+  src/usb/usb_backend.cpp
+  src/usb/usb_provider.cpp
 )
 
 if(APPLE)
@@ -65,8 +65,8 @@ add_executable(ndx_tests
   tests/test_ble_ffi.cpp
   tests/test_ble_provider.cpp
   tests/test_bluetooth_backend.cpp
-  tests/test_ftdi_backend.cpp
-  tests/test_ftdi_ffi.cpp
+  tests/test_usb_backend.cpp
+  tests/test_usb_ffi.cpp
 )
 
 target_compile_definitions(ndx_tests PRIVATE NDX_TESTING)

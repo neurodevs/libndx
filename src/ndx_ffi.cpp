@@ -11,12 +11,12 @@
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_backend.hpp"
 #include "ndx/ble_provider.hpp"
-#include "ndx/ftdi_backend.hpp"
-#include "ndx/ftdi_provider.hpp"
+#include "ndx/usb_backend.hpp"
+#include "ndx/usb_provider.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
-static std::unordered_map<std::string, std::shared_ptr<ndx::FtdiBackend>> g_ftdi_backends;
+static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
 static BleFactory g_ble_factory = [](const std::string& device_uuid) {
     return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
@@ -35,17 +35,17 @@ static bool is_ble_registered(const std::string& device_uuid) {
     return g_ble_backends.count(device_uuid) > 0;
 }
 
-static FtdiFactory g_ftdi_factory = [](const std::string& serial_number) {
-    return std::make_shared<ndx::FtdiBackend>(serial_number, ndx::create_ftdi_provider());
+static UsbFactory g_usb_factory = [](const std::string& serial_number) {
+    return std::make_shared<ndx::UsbBackend>(serial_number, ndx::create_usb_provider());
 };
 
-std::shared_ptr<ndx::FtdiBackend> get_ftdi_backend(const std::string& serial_number) {
-    auto it = g_ftdi_backends.find(serial_number);
-    return it != g_ftdi_backends.end() ? it->second : nullptr;
+std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number) {
+    auto it = g_usb_backends.find(serial_number);
+    return it != g_usb_backends.end() ? it->second : nullptr;
 }
 
-static bool is_ftdi_registered(const std::string& serial_number) {
-    return g_ftdi_backends.count(serial_number) > 0;
+static bool is_usb_registered(const std::string& serial_number) {
+    return g_usb_backends.count(serial_number) > 0;
 }
 
 extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered) {
@@ -192,7 +192,7 @@ extern "C" char* stop_ble_backend(const char* device_uuid)  {
     }
 }
 
-extern "C" char* create_ftdi_backend(const char* config_json) {
+extern "C" char* create_usb_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
@@ -206,20 +206,20 @@ extern "C" char* create_ftdi_backend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "invalid serial number"}});
         }
 
-        if (is_ftdi_registered(serial_number)) {
+        if (is_usb_registered(serial_number)) {
             return to_ffi_result({{"status", 400}, {"error", "serial number already registered"}});
         }
 
-        g_ftdi_backends[serial_number] = g_ftdi_factory(serial_number);
+        g_usb_backends[serial_number] = g_usb_factory(serial_number);
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
 }
 
-extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec)) {
+extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec)) {
     try {
-        auto backend = get_ftdi_backend(serial_number);
+        auto backend = get_usb_backend(serial_number);
         if (backend) {
             backend->start([fn = on_data](const ndx::Packet& p) {});
         }
@@ -229,9 +229,9 @@ extern "C" char* start_ftdi_backend(const char* serial_number, void (*on_data)(c
     }
 }
 
-extern "C" char* stop_ftdi_backend(const char* serial_number) {
+extern "C" char* stop_usb_backend(const char* serial_number) {
     try {
-        return stop_backend(serial_number, get_ftdi_backend); 
+        return stop_backend(serial_number, get_usb_backend);
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
@@ -248,10 +248,10 @@ void reset_ble_backends() {
     g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
 }
 
-void reset_ftdi_backends() {
-    g_ftdi_backends.clear();
-    g_ftdi_factory = [](const std::string& serial_number) {
-        return std::make_shared<ndx::FtdiBackend>(serial_number, ndx::create_ftdi_provider());
+void reset_usb_backends() {
+    g_usb_backends.clear();
+    g_usb_factory = [](const std::string& serial_number) {
+        return std::make_shared<ndx::UsbBackend>(serial_number, ndx::create_usb_provider());
     };
 }
 
@@ -263,6 +263,6 @@ void set_ble_provider_factory(BleProviderFactory factory) {
     g_ble_provider_factory = factory;
 }
 
-void set_ftdi_factory(FtdiFactory factory) {
-    g_ftdi_factory = factory;
+void set_usb_factory(UsbFactory factory) {
+    g_usb_factory = factory;
 }
