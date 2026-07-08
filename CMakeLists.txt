@@ -67,6 +67,7 @@ add_executable(ndx_tests
   tests/test_bluetooth_backend.cpp
   tests/test_usb_backend.cpp
   tests/test_usb_ffi.cpp
+  tests/test_usb_provider.cpp
 )
 
 target_compile_definitions(ndx_tests PRIVATE NDX_TESTING)

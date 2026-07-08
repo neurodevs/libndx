@@ -16,4 +16,8 @@ std::unique_ptr<UsbProvider> create_usb_provider() {
   return std::make_unique<NullUsbProvider>();
 }
 
+std::string usb_port_path(const std::string& serial_number) {
+  return "/dev/cu.usbserial-" + serial_number;
+}
+
 }
