@@ -112,4 +112,6 @@ if(APPLE)
     "-framework Foundation"
     "-framework IOBluetooth"
   )
+
+  add_executable(discover_cyton tools/discover_cyton.cpp)
 endif()
