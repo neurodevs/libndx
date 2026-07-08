@@ -13,6 +13,9 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
     on_connected = std::move(connected);
   }
+  void add_char_callbacks(ndx::CharCallbacks cbs) override {
+    for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+  }
   bool discover_ble_uuid_called = false;
   std::function<void(const std::string&)> discover_ble_uuid_callback;
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)> cb) override {
@@ -111,6 +114,7 @@ struct BleFfiFixture {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
         void start(ndx::CharCallbacks, ndx::OnConnectedCallback) override { throw std::runtime_error("internal server error"); }
+        void add_char_callbacks(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { return 0; }
         void set_rssi_interval(int, std::function<void(int)>) override { throw std::runtime_error("internal server error"); }
@@ -235,6 +239,41 @@ TEST_CASE_METHOD(BleFfiFixture, "start_ble_backend returns 500 on unexpected thr
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "add_ble_char_callbacks returns ok") {
+  BleFfiFixture::start();
+  static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
+  auto json = nlohmann::json::parse(add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1));
+  REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "add_ble_char_callbacks routes packets to the added callback") {
+  static bool called = false;
+  called = false;
+  static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) { called = true; }};
+
+  BleFfiFixture::start();
+  add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1);
+  provider->simulate_packet(ndx::Packet{});
+
+  REQUIRE(called);
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "add_ble_char_callbacks returns 400 if backend not found") {
+  static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
+  auto json = nlohmann::json::parse(add_ble_char_callbacks("unknown-uuid", &cb, 1));
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "backend not found");
+}
+
+TEST_CASE_METHOD(BleFfiFixture, "add_ble_char_callbacks returns 500 on unexpected throw") {
+  set_throwing_factory();
+  create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+  static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
+  auto json = nlohmann::json::parse(add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1));
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }

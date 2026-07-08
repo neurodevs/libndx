@@ -26,6 +26,7 @@ struct CharCallback {
 char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered);
 char* create_ble_backend(const char* config_json);
 char* start_ble_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks);
+char* add_ble_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* value);
 char* set_ble_rssi_interval(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi);
 char* stop_ble_rssi_interval(const char* device_uuid);

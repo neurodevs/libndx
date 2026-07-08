@@ -15,18 +15,32 @@ struct FakeBleProvider : ndx::BleProvider {
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
 
   bool is_powered_on() override { return powered_on; }
+  
   int read_rssi() override { return 0; }
+
   void set_rssi_interval(int, std::function<void(int)>) override {}
+
   void stop_rssi_interval() override {}
+
   void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);
   }
+
   void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback) override {
     scan_requested_for = uuid;
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
+
+  bool add_char_callbacks_called = false;
+
+  void add_char_callbacks(ndx::CharCallbacks cbs) override {
+    add_char_callbacks_called = true;
+    for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+  }
+
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)>) override {}
+  
   void disconnect_peripheral(const std::string& uuid) override {
     disconnect_requested_for = uuid;
   }
@@ -136,4 +150,18 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend write_characteristic forwards da
   backend.write_characteristic("273E0001-4C4D-454D-96BE-F03BAC821358", data, sizeof(data));
   REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
   REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x02, 'h', '\n'});
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend add_char_callbacks forwards to provider") {
+  start();
+  backend.add_char_callbacks({{"added-uuid", std::nullopt, [](const ndx::Packet&) {}}});
+  REQUIRE(provider->add_char_callbacks_called);
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend add_char_callbacks routes packets to the added callback") {
+  start();
+  bool called = false;
+  backend.add_char_callbacks({{"added-uuid", std::nullopt, [&](const ndx::Packet&) { called = true; }}});
+  provider->simulate_packet(ndx::Packet{}, "added-uuid");
+  REQUIRE(called);
 }

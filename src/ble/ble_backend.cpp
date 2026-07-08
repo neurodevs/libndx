@@ -17,6 +17,10 @@ void BleBackend::start(CharCallbacks callbacks, ndx::OnConnectedCallback on_conn
   provider_->scan_for_peripheral(device_id_, std::move(callbacks), std::move(on_connected));
 }
 
+void BleBackend::add_char_callbacks(CharCallbacks callbacks) {
+  provider_->add_char_callbacks(std::move(callbacks));
+}
+
 void BleBackend::stop() {
   AcquisitionBackend::stop();
   provider_->disconnect_peripheral(device_id_);

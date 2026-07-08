@@ -88,6 +88,14 @@ public:
     });
   }
 
+  void add_char_callbacks(CharCallbacks callbacks) override {
+    __block auto cbs = std::move(callbacks);
+    dispatch_async(ble_queue_, ^{
+      for (auto& entry : cbs)
+        char_callbacks_[entry.char_uuid] = std::move(entry.on_data);
+    });
+  }
+
   int read_rssi() override {
     CBPeripheral* peripheral = delegate_.peripheral;
     dispatch_async(ble_queue_, ^{

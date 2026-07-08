@@ -126,6 +126,24 @@ extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_c
     }
 }
 
+extern "C" char* add_ble_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
+    try {
+        auto backend = get_ble_backend(device_uuid);
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        ndx::CharCallbacks cbs;
+        for (size_t i = 0; i < num_callbacks; ++i) {
+            auto& c = callbacks[i];
+            cbs.push_back({c.char_uuid ? c.char_uuid : "", c.char_name ? c.char_name : "", [fn = c.callback](const ndx::Packet& p) {
+                fn(p.data.data(), p.data.size(), p.timestamp_sec);
+            }});
+        }
+        backend->add_char_callbacks(std::move(cbs));
+        return to_ffi_result({{"status", 200}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
+}
+
 extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* cmd) {
     try {
         auto backend = get_ble_backend(device_uuid);
