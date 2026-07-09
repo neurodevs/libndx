@@ -1,8 +1,10 @@
 #include <catch2/catch_all.hpp>
+#include <chrono>
 #include <cstdlib>
 #include <fcntl.h>
 #include <random>
 #include <termios.h>
+#include <thread>
 #include <unistd.h>
 #include <util.h>
 #include <vector>
@@ -129,6 +131,33 @@ TEST_CASE("UsbProvider connect invokes on_connected on success") {
 
   REQUIRE(connected);
   REQUIRE(connected_id == "ABCD1234");
+
+  provider->disconnect();
+}
+
+TEST_CASE("UsbProvider connect delivers incoming bytes via on_data") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  std::vector<uint8_t> received;
+  provider->connect("ABCD1234", [&](const ndx::Packet& p) {
+    received.insert(received.end(), p.data.begin(), p.data.end());
+  }, nullptr);
+
+  const std::string sent = "hello";
+  REQUIRE(write(pty.master_fd, sent.data(), sent.size()) == (ssize_t)sent.size());
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (received.size() < sent.size() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  REQUIRE(std::string(received.begin(), received.end()) == sent);
 
   provider->disconnect();
 }

@@ -1,8 +1,11 @@
 #include "ndx/usb_provider.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <fcntl.h>
 #include <stdexcept>
 #include <termios.h>
+#include <thread>
 #include <unistd.h>
 
 namespace ndx {
@@ -16,7 +19,7 @@ namespace {
 
 class PosixUsbProvider : public UsbProvider {
 public:
-  void connect(const std::string& device_id, OnDataCallback, OnConnectedCallback on_connected) override {
+  void connect(const std::string& device_id, OnDataCallback on_data, OnConnectedCallback on_connected) override {
     fd_ = open_usb_serial_port(usb_port_path(device_id), B115200);
 
     if (fd_ < 0) {
@@ -27,9 +30,19 @@ public:
       Device device{device_id, device_id};
       on_connected(&device);
     }
+
+    running_ = true;
+    
+    read_thread_ = std::thread([this, on_data = std::move(on_data)]() {
+      while (running_) {
+        read_available_data(fd_, on_data);
+      }
+    });
   }
 
   void disconnect() override {
+    running_ = false;
+    if (read_thread_.joinable()) read_thread_.join();
     if (fd_ >= 0) {
       UsbProviderSyscalls::close(fd_);
       fd_ = -1;
@@ -38,6 +51,8 @@ public:
 
 private:
   int fd_ = -1;
+  std::atomic<bool> running_{false};
+  std::thread read_thread_;
 };
 
 }
