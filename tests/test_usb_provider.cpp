@@ -110,6 +110,29 @@ TEST_CASE("UsbProvider disconnect closes the fd opened by connect") {
   REQUIRE(closed_fds.size() == 1);
 }
 
+TEST_CASE("UsbProvider connect invokes on_connected on success") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  bool connected = false;
+  std::string connected_id;
+  provider->connect("ABCD1234", [](const ndx::Packet&) {},
+                     [&](const ndx::Device* device) {
+                       connected = device != nullptr;
+                       if (device) connected_id = device->id;
+                     });
+
+  REQUIRE(connected);
+  REQUIRE(connected_id == "ABCD1234");
+
+  provider->disconnect();
+}
+
 TEST_CASE("open_usb_serial_port configures the port at the requested baud rate") {
   static const speed_t kCandidateBauds[] = {B9600, B19200, B38400, B57600, B230400};
   std::mt19937 rng(std::random_device{}());
