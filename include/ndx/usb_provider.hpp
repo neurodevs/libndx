@@ -22,6 +22,7 @@ std::string usb_port_path(const std::string& serial_number);
 
 class UsbProviderSyscalls {
 public:
+  static std::function<int(const char*, int)> open;
   static std::function<int(int)> close;
   static std::function<int(int, int, const termios*)> tcsetattr;
 };

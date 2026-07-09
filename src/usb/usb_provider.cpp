@@ -7,6 +7,8 @@
 
 namespace ndx {
 
+std::function<int(const char*, int)> UsbProviderSyscalls::open =
+    [](const char* path, int flags) { return ::open(path, flags); };
 std::function<int(int)> UsbProviderSyscalls::close = ::close;
 std::function<int(int, int, const termios*)> UsbProviderSyscalls::tcsetattr = ::tcsetattr;
 
@@ -22,7 +24,12 @@ public:
     }
   }
 
-  void disconnect() override {}
+  void disconnect() override {
+    if (fd_ >= 0) {
+      UsbProviderSyscalls::close(fd_);
+      fd_ = -1;
+    }
+  }
 
 private:
   int fd_ = -1;
@@ -39,7 +46,7 @@ std::string usb_port_path(const std::string& serial_number) {
 }
 
 int open_usb_serial_port(const std::string& path, speed_t baud) {
-  int fd = open(path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+  int fd = UsbProviderSyscalls::open(path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (fd < 0) return -1;
 
   termios tty{};

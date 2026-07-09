@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <cstdlib>
+#include <fcntl.h>
 #include <random>
 #include <termios.h>
 #include <unistd.h>
@@ -24,6 +25,7 @@ struct Pty {
 
 struct RestoreUsbProviderSyscalls {
   ~RestoreUsbProviderSyscalls() {
+    ndx::UsbProviderSyscalls::open = [](const char* path, int flags) { return ::open(path, flags); };
     ndx::UsbProviderSyscalls::close = ::close;
     ndx::UsbProviderSyscalls::tcsetattr = ::tcsetattr;
   }
@@ -84,6 +86,28 @@ TEST_CASE("open_usb_serial_port returns a valid descriptor for existing path") {
 TEST_CASE("UsbProvider connect throws when port can't be opened") {
   auto provider = ndx::create_usb_provider();
   REQUIRE_THROWS(provider->connect("DOESNOTEXIST", [](const ndx::Packet&) {}, nullptr));
+}
+
+TEST_CASE("UsbProvider disconnect closes the fd opened by connect") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  std::vector<int> closed_fds;
+  ndx::UsbProviderSyscalls::close = [&](int fd) {
+    closed_fds.push_back(fd);
+    return ::close(fd);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr);
+
+  provider->disconnect();
+
+  REQUIRE(closed_fds.size() == 1);
 }
 
 TEST_CASE("open_usb_serial_port configures the port at the requested baud rate") {
