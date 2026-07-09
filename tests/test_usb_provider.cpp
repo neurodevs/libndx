@@ -133,6 +133,19 @@ TEST_CASE("UsbProvider connect invokes on_connected on success") {
   provider->disconnect();
 }
 
+TEST_CASE("read_available_data does not invoke on_data when nothing is available") {
+  Pty pty;
+  int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
+  REQUIRE(fd >= 0);
+
+  bool called = false;
+  ndx::read_available_data(fd, [&](const ndx::Packet&) { called = true; });
+
+  REQUIRE_FALSE(called);
+
+  close(fd);
+}
+
 TEST_CASE("read_available_data invokes on_data with bytes read from the fd") {
   Pty pty;
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
