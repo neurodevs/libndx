@@ -257,6 +257,33 @@ TEST_CASE("UsbProvider connect waits waitAfterConnectMs before returning") {
   REQUIRE(sleeps.front() == std::chrono::milliseconds(2000));
 }
 
+TEST_CASE("UsbProvider connect discards data buffered before it finishes connecting") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  const std::string boot_chatter = "GARBAGE";
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    int fd = ::open(pty.slave_path, flags);
+    write(pty.master_fd, boot_chatter.data(), boot_chatter.size());
+    return fd;
+  };
+
+  std::mutex received_mutex;
+  std::vector<uint8_t> received;
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [&](const ndx::Packet& p) {
+    std::lock_guard<std::mutex> lock(received_mutex);
+    received.insert(received.end(), p.data.begin(), p.data.end());
+  }, nullptr);
+  DisconnectGuard guard{provider.get()};
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  std::lock_guard<std::mutex> lock(received_mutex);
+  std::string received_str(received.begin(), received.end());
+  REQUIRE(received_str.find(boot_chatter) == std::string::npos);
+}
+
 TEST_CASE("write_usb_serial_port writes bytes to the fd") {
   Pty pty;
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);

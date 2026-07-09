@@ -39,6 +39,8 @@ public:
       UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(waitAfterConnectMs));
     }
 
+    tcflush(fd_, TCIFLUSH);
+
     if (on_connected) {
       Device device{device_id, device_id};
       on_connected(&device);
