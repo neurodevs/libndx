@@ -3,6 +3,8 @@
 #include "ndx/usb_backend.hpp"
 #include "ndx/usb_provider.hpp"
 
+namespace {
+
 struct FakeUsbProvider : ndx::UsbProvider {
   std::string connect_requested_for;
   bool disconnect_called = false;
@@ -21,6 +23,8 @@ struct FakeUsbProvider : ndx::UsbProvider {
     if (captured_on_data) captured_on_data(p);
   }
 };
+
+}
 
 struct UsbBackendFixture {
   FakeUsbProvider* provider;

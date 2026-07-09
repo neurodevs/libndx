@@ -4,11 +4,23 @@
 #include "ndx/ndx_ffi.hpp"
 #include "ndx/usb_provider.hpp"
 
+namespace {
+
+struct FakeUsbProvider : ndx::UsbProvider {
+  void connect(const std::string&, ndx::OnDataCallback, ndx::OnConnectedCallback) override {}
+  void disconnect() override {}
+};
+
+}
+
 struct UsbFfiFixture {
   std::string valid_serial;
 
   UsbFfiFixture() {
     reset_usb_backends();
+    set_usb_factory([](const std::string& serial_number) {
+      return std::make_shared<ndx::UsbBackend>(serial_number, std::make_unique<FakeUsbProvider>());
+    });
     valid_serial = "ABCD1234";
   }
 

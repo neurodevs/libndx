@@ -1,6 +1,7 @@
 #include "ndx/usb_provider.hpp"
 
 #include <fcntl.h>
+#include <stdexcept>
 #include <termios.h>
 #include <unistd.h>
 
@@ -11,16 +12,26 @@ std::function<int(int, int, const termios*)> UsbProviderSyscalls::tcsetattr = ::
 
 namespace {
 
-class NullUsbProvider : public UsbProvider {
+class PosixUsbProvider : public UsbProvider {
 public:
-  void connect(const std::string&, OnDataCallback, OnConnectedCallback) override {}
+  void connect(const std::string& device_id, OnDataCallback, OnConnectedCallback) override {
+    fd_ = open_usb_serial_port(usb_port_path(device_id), B115200);
+
+    if (fd_ < 0) {
+      throw std::runtime_error("UsbProvider: could not open port for device " + device_id);
+    }
+  }
+
   void disconnect() override {}
+
+private:
+  int fd_ = -1;
 };
 
 }
 
 std::unique_ptr<UsbProvider> create_usb_provider() {
-  return std::make_unique<NullUsbProvider>();
+  return std::make_unique<PosixUsbProvider>();
 }
 
 std::string usb_port_path(const std::string& serial_number) {

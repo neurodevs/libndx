@@ -81,6 +81,11 @@ TEST_CASE("open_usb_serial_port returns a valid descriptor for existing path") {
   close(fd);
 }
 
+TEST_CASE("UsbProvider connect throws when port can't be opened") {
+  auto provider = ndx::create_usb_provider();
+  REQUIRE_THROWS(provider->connect("DOESNOTEXIST", [](const ndx::Packet&) {}, nullptr));
+}
+
 TEST_CASE("open_usb_serial_port configures the port at the requested baud rate") {
   static const speed_t kCandidateBauds[] = {B9600, B19200, B38400, B57600, B230400};
   std::mt19937 rng(std::random_device{}());
