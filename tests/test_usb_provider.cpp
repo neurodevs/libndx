@@ -1,6 +1,8 @@
 #include <catch2/catch_all.hpp>
+#include <cerrno>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <mutex>
 #include <random>
@@ -96,6 +98,18 @@ TEST_CASE("open_usb_serial_port returns a valid descriptor for existing path") {
 TEST_CASE("UsbProvider connect throws when port can't be opened") {
   auto provider = ndx::create_usb_provider();
   REQUIRE_THROWS(provider->connect("DOESNOTEXIST", [](const ndx::Packet&) {}, nullptr));
+}
+
+TEST_CASE("UsbProvider connect includes the errno reason when open fails") {
+  RestoreUsbProviderSyscalls restore;
+  ndx::UsbProviderSyscalls::open = [](const char*, int) {
+    errno = EACCES;
+    return -1;
+  };
+
+  auto provider = ndx::create_usb_provider();
+  REQUIRE_THROWS_WITH(provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr),
+                      Catch::Matchers::ContainsSubstring(strerror(EACCES)));
 }
 
 TEST_CASE("UsbProvider disconnect closes the fd opened by connect") {

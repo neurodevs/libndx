@@ -115,4 +115,5 @@ if(APPLE)
   )
 
   add_executable(discover_cyton tools/discover_cyton.cpp)
+  target_link_libraries(discover_cyton PRIVATE ndx)
 endif()

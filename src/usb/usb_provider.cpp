@@ -1,7 +1,9 @@
 #include "ndx/usb_provider.hpp"
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
 #include <termios.h>
@@ -9,6 +11,8 @@
 #include <unistd.h>
 
 namespace ndx {
+
+static thread_local int g_last_open_errno = 0;
 
 std::function<int(const char*, int)> UsbProviderSyscalls::open =
     [](const char* path, int flags) { return ::open(path, flags); };
@@ -27,7 +31,8 @@ public:
     fd_ = open_usb_serial_port(usb_port_path(device_id), B115200);
 
     if (fd_ < 0) {
-      throw std::runtime_error("UsbProvider: could not open port for device " + device_id);
+      throw std::runtime_error("UsbProvider: could not open port for device " + device_id +
+                                " (" + strerror(g_last_open_errno) + ")");
     }
 
     if (waitAfterConnectMs > 0) {
@@ -80,10 +85,14 @@ std::string usb_port_path(const std::string& serial_number) {
 
 int open_usb_serial_port(const std::string& path, speed_t baud) {
   int fd = UsbProviderSyscalls::open(path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-  if (fd < 0) return -1;
+  if (fd < 0) {
+    g_last_open_errno = errno;
+    return -1;
+  }
 
   termios tty{};
   if (tcgetattr(fd, &tty) != 0) {
+    g_last_open_errno = errno;
     UsbProviderSyscalls::close(fd);
     return -1;
   }
@@ -93,6 +102,7 @@ int open_usb_serial_port(const std::string& path, speed_t baud) {
   cfsetospeed(&tty, baud);
 
   if (UsbProviderSyscalls::tcsetattr(fd, TCSANOW, &tty) != 0) {
+    g_last_open_errno = errno;
     UsbProviderSyscalls::close(fd);
     return -1;
   }
