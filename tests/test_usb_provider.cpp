@@ -133,6 +133,18 @@ TEST_CASE("UsbProvider connect invokes on_connected on success") {
   provider->disconnect();
 }
 
+TEST_CASE("open_usb_serial_port puts port into raw mode") {
+  Pty pty;
+  int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
+  REQUIRE(fd >= 0);
+
+  termios tty{};
+  REQUIRE(tcgetattr(fd, &tty) == 0);
+  REQUIRE_FALSE(tty.c_lflag & ICANON);
+
+  close(fd);
+}
+
 TEST_CASE("open_usb_serial_port configures the port at the requested baud rate") {
   static const speed_t kCandidateBauds[] = {B9600, B19200, B38400, B57600, B230400};
   std::mt19937 rng(std::random_device{}());

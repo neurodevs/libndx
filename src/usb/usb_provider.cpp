@@ -60,6 +60,7 @@ int open_usb_serial_port(const std::string& path, speed_t baud) {
     return -1;
   }
 
+  cfmakeraw(&tty);
   cfsetispeed(&tty, baud);
   cfsetospeed(&tty, baud);
 
