@@ -133,6 +133,24 @@ TEST_CASE("UsbProvider connect invokes on_connected on success") {
   provider->disconnect();
 }
 
+TEST_CASE("read_available_data invokes on_data with bytes read from the fd") {
+  Pty pty;
+  int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
+  REQUIRE(fd >= 0);
+
+  const std::string sent = "hello";
+  REQUIRE(write(pty.master_fd, sent.data(), sent.size()) == (ssize_t)sent.size());
+
+  std::vector<uint8_t> received;
+  ndx::read_available_data(fd, [&](const ndx::Packet& p) {
+    received.insert(received.end(), p.data.begin(), p.data.end());
+  });
+
+  REQUIRE(std::string(received.begin(), received.end()) == sent);
+
+  close(fd);
+}
+
 TEST_CASE("open_usb_serial_port puts port into raw mode") {
   Pty pty;
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);

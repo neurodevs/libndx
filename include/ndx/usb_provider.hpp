@@ -29,4 +29,6 @@ public:
 
 int open_usb_serial_port(const std::string& path, speed_t baud);
 
+void read_available_data(int fd, OnDataCallback on_data);
+
 }

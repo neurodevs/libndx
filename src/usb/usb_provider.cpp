@@ -72,4 +72,15 @@ int open_usb_serial_port(const std::string& path, speed_t baud) {
   return fd;
 }
 
+void read_available_data(int fd, OnDataCallback on_data) {
+  char buf[256];
+  ssize_t n = read(fd, buf, sizeof(buf));
+  
+  if (n > 0 && on_data) {
+    Packet p;
+    p.data.assign(buf, buf + n);
+    on_data(p);
+  }
+}
+
 }
