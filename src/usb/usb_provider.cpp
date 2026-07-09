@@ -54,6 +54,10 @@ public:
     }
   }
 
+  bool write(const uint8_t* data, size_t len) override {
+    return write_usb_serial_port(fd_, data, len);
+  }
+
 private:
   int fd_ = -1;
   std::atomic<bool> running_{false};

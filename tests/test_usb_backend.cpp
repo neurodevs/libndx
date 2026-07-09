@@ -19,6 +19,8 @@ struct FakeUsbProvider : ndx::UsbProvider {
 
   void disconnect() override { disconnect_called = true; }
 
+  bool write(const uint8_t*, size_t) override { return false; }
+
   void simulate_packet(const ndx::Packet& p) {
     if (captured_on_data) captured_on_data(p);
   }

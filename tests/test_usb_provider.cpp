@@ -36,6 +36,11 @@ struct RestoreUsbProviderSyscalls {
   }
 };
 
+struct DisconnectGuard {
+  ndx::UsbProvider* provider;
+  ~DisconnectGuard() { provider->disconnect(); }
+};
+
 }
 
 TEST_CASE("usb_port_path builds the macOS device path from the serial number") {
@@ -113,6 +118,27 @@ TEST_CASE("UsbProvider disconnect closes the fd opened by connect") {
   provider->disconnect();
 
   REQUIRE(closed_fds.size() == 1);
+}
+
+TEST_CASE("UsbProvider write sends bytes to the connected device") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr);
+  DisconnectGuard guard{provider.get()};
+
+  const std::string sent = "v";
+  REQUIRE(provider->write(reinterpret_cast<const uint8_t*>(sent.data()), sent.size()));
+
+  char buf[16] = {};
+  ssize_t n = read(pty.master_fd, buf, sizeof(buf));
+  REQUIRE(n == (ssize_t)sent.size());
+  REQUIRE(std::string(buf, n) == sent);
 }
 
 TEST_CASE("UsbProvider connect invokes on_connected on success") {

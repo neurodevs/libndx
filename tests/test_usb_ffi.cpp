@@ -9,6 +9,7 @@ namespace {
 struct FakeUsbProvider : ndx::UsbProvider {
   void connect(const std::string&, ndx::OnDataCallback, ndx::OnConnectedCallback) override {}
   void disconnect() override {}
+  bool write(const uint8_t*, size_t) override { return false; }
 };
 
 }

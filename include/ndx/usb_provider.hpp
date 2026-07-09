@@ -18,6 +18,7 @@ public:
                        OnDataCallback on_data,
                        OnConnectedCallback on_connected) = 0;
   virtual void disconnect() = 0;
+  virtual bool write(const uint8_t* data, size_t len) = 0;
 };
 
 std::unique_ptr<UsbProvider> create_usb_provider();
