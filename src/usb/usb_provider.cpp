@@ -14,6 +14,8 @@ std::function<int(const char*, int)> UsbProviderSyscalls::open =
     [](const char* path, int flags) { return ::open(path, flags); };
 std::function<int(int)> UsbProviderSyscalls::close = ::close;
 std::function<int(int, int, const termios*)> UsbProviderSyscalls::tcsetattr = ::tcsetattr;
+std::function<void(std::chrono::milliseconds)> UsbProviderSyscalls::sleep_for =
+    [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
 
 namespace {
 
@@ -36,6 +38,7 @@ public:
     read_thread_ = std::thread([this, on_data = std::move(on_data)]() {
       while (running_) {
         read_available_data(fd_, on_data);
+        UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(1));
       }
     });
   }

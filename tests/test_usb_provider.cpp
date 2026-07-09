@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <fcntl.h>
+#include <mutex>
 #include <random>
 #include <termios.h>
 #include <thread>
@@ -30,6 +31,7 @@ struct RestoreUsbProviderSyscalls {
     ndx::UsbProviderSyscalls::open = [](const char* path, int flags) { return ::open(path, flags); };
     ndx::UsbProviderSyscalls::close = ::close;
     ndx::UsbProviderSyscalls::tcsetattr = ::tcsetattr;
+    ndx::UsbProviderSyscalls::sleep_for = [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
   }
 };
 
@@ -160,6 +162,37 @@ TEST_CASE("UsbProvider connect delivers incoming bytes via on_data") {
   REQUIRE(std::string(received.begin(), received.end()) == sent);
 
   provider->disconnect();
+}
+
+TEST_CASE("UsbProvider connect throttles its read loop with a 1ms sleep") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  std::vector<std::chrono::milliseconds> sleeps;
+  std::mutex sleeps_mutex;
+  ndx::UsbProviderSyscalls::sleep_for = [&](std::chrono::milliseconds d) {
+    std::lock_guard<std::mutex> lock(sleeps_mutex);
+    sleeps.push_back(d);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr);
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (std::chrono::steady_clock::now() < deadline) {
+    std::lock_guard<std::mutex> lock(sleeps_mutex);
+    if (!sleeps.empty()) break;
+  }
+
+  provider->disconnect();
+
+  std::lock_guard<std::mutex> lock(sleeps_mutex);
+  REQUIRE_FALSE(sleeps.empty());
+  REQUIRE(sleeps.front() == std::chrono::milliseconds(1));
 }
 
 TEST_CASE("read_available_data does not invoke on_data when nothing is available") {

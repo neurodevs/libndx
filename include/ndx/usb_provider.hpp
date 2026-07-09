@@ -1,5 +1,6 @@
 #pragma once
 #include "acquisition_backend.hpp"
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@ public:
   static std::function<int(const char*, int)> open;
   static std::function<int(int)> close;
   static std::function<int(int, int, const termios*)> tcsetattr;
+  static std::function<void(std::chrono::milliseconds)> sleep_for;
 };
 
 int open_usb_serial_port(const std::string& path, speed_t baud);
