@@ -18,4 +18,6 @@ std::unique_ptr<UsbProvider> create_usb_provider();
 
 std::string usb_port_path(const std::string& serial_number);
 
+int open_usb_serial_port(const std::string& path);
+
 }
