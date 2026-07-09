@@ -32,6 +32,7 @@ struct RestoreUsbProviderSyscalls {
     ndx::UsbProviderSyscalls::close = ::close;
     ndx::UsbProviderSyscalls::tcsetattr = ::tcsetattr;
     ndx::UsbProviderSyscalls::sleep_for = [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
+    ndx::UsbProviderSyscalls::write = [](int fd, const uint8_t* data, size_t len) { return ::write(fd, data, len); };
   }
 };
 
@@ -193,6 +194,22 @@ TEST_CASE("UsbProvider connect throttles its read loop with a 1ms sleep") {
   std::lock_guard<std::mutex> lock(sleeps_mutex);
   REQUIRE_FALSE(sleeps.empty());
   REQUIRE(sleeps.front() == std::chrono::milliseconds(1));
+}
+
+TEST_CASE("write_usb_serial_port writes bytes to the fd") {
+  Pty pty;
+  int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
+  REQUIRE(fd >= 0);
+
+  const std::string sent = "v";
+  REQUIRE(ndx::write_usb_serial_port(fd, reinterpret_cast<const uint8_t*>(sent.data()), sent.size()));
+
+  char buf[16] = {};
+  ssize_t n = read(pty.master_fd, buf, sizeof(buf));
+  REQUIRE(n == (ssize_t)sent.size());
+  REQUIRE(std::string(buf, n) == sent);
+
+  close(fd);
 }
 
 TEST_CASE("read_available_data does not invoke on_data when nothing is available") {

@@ -1,9 +1,12 @@
 #pragma once
 #include "acquisition_backend.hpp"
 #include <chrono>
+#include <cstdint>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
+#include <sys/types.h>
 #include <termios.h>
 
 namespace ndx {
@@ -27,10 +30,13 @@ public:
   static std::function<int(int)> close;
   static std::function<int(int, int, const termios*)> tcsetattr;
   static std::function<void(std::chrono::milliseconds)> sleep_for;
+  static std::function<ssize_t(int, const uint8_t*, size_t)> write;
 };
 
 int open_usb_serial_port(const std::string& path, speed_t baud);
 
 void read_available_data(int fd, OnDataCallback on_data);
+
+bool write_usb_serial_port(int fd, const uint8_t* data, size_t len);
 
 }

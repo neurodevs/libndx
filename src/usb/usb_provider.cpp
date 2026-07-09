@@ -16,6 +16,8 @@ std::function<int(int)> UsbProviderSyscalls::close = ::close;
 std::function<int(int, int, const termios*)> UsbProviderSyscalls::tcsetattr = ::tcsetattr;
 std::function<void(std::chrono::milliseconds)> UsbProviderSyscalls::sleep_for =
     [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
+std::function<ssize_t(int, const uint8_t*, size_t)> UsbProviderSyscalls::write =
+    [](int fd, const uint8_t* data, size_t len) { return ::write(fd, data, len); };
 
 namespace {
 
@@ -99,6 +101,10 @@ void read_available_data(int fd, OnDataCallback on_data) {
     p.data.assign(buf, buf + n);
     on_data(p);
   }
+}
+
+bool write_usb_serial_port(int fd, const uint8_t* data, size_t len) {
+  return UsbProviderSyscalls::write(fd, data, len) == static_cast<ssize_t>(len);
 }
 
 }
