@@ -12,7 +12,8 @@ struct FakeUsbProvider : ndx::UsbProvider {
 
   void connect(const std::string& device_id,
                ndx::OnDataCallback on_data,
-               ndx::OnConnectedCallback) override {
+               ndx::OnConnectedCallback,
+               int waitAfterConnectMs = 0) override {
     connect_requested_for = device_id;
     captured_on_data = std::move(on_data);
   }

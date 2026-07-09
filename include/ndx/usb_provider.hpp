@@ -16,7 +16,8 @@ public:
   virtual ~UsbProvider() = default;
   virtual void connect(const std::string& device_id,
                        OnDataCallback on_data,
-                       OnConnectedCallback on_connected) = 0;
+                       OnConnectedCallback on_connected,
+                       int waitAfterConnectMs = 0) = 0;
   virtual void disconnect() = 0;
   virtual bool write(const uint8_t* data, size_t len) = 0;
 };

@@ -23,11 +23,15 @@ namespace {
 
 class PosixUsbProvider : public UsbProvider {
 public:
-  void connect(const std::string& device_id, OnDataCallback on_data, OnConnectedCallback on_connected) override {
+  void connect(const std::string& device_id, OnDataCallback on_data, OnConnectedCallback on_connected, int waitAfterConnectMs) override {
     fd_ = open_usb_serial_port(usb_port_path(device_id), B115200);
 
     if (fd_ < 0) {
       throw std::runtime_error("UsbProvider: could not open port for device " + device_id);
+    }
+
+    if (waitAfterConnectMs > 0) {
+      UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(waitAfterConnectMs));
     }
 
     if (on_connected) {

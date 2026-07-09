@@ -222,6 +222,27 @@ TEST_CASE("UsbProvider connect throttles its read loop with a 1ms sleep") {
   REQUIRE(sleeps.front() == std::chrono::milliseconds(1));
 }
 
+TEST_CASE("UsbProvider connect waits waitAfterConnectMs before returning") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  std::vector<std::chrono::milliseconds> sleeps;
+  ndx::UsbProviderSyscalls::sleep_for = [&](std::chrono::milliseconds d) {
+    sleeps.push_back(d);
+  };
+
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr, 2000);
+  DisconnectGuard guard{provider.get()};
+
+  REQUIRE_FALSE(sleeps.empty());
+  REQUIRE(sleeps.front() == std::chrono::milliseconds(2000));
+}
+
 TEST_CASE("write_usb_serial_port writes bytes to the fd") {
   Pty pty;
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
