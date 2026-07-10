@@ -76,6 +76,7 @@ struct UsbFfiFixture {
         using ndx::UsbBackend::UsbBackend;
         void start(ndx::OnDataCallback, ndx::OnConnectedCallback, int) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
+        bool write(const uint8_t*, size_t) override { throw std::runtime_error("hardware fault"); }
       };
       return std::make_shared<ThrowingUsbBackend>(uuid, ndx::create_usb_provider());
     });
@@ -152,6 +153,20 @@ TEST_CASE_METHOD(ValidUsbFixture, "write_usb_backend returns ok") {
 TEST_CASE_METHOD(ValidUsbFixture, "write_usb_backend forwards bytes to the provider") {
   auto json = write_v();
   REQUIRE(g_fake_usb_provider->written_data == std::vector<uint8_t>{'v'});
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "write_usb_backend returns 400 if backend not found") {
+  auto json = nlohmann::json::parse(write_usb_backend("unknown1", "v"));
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "backend not found");
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "write_usb_backend returns 500 on unexpected throw") {
+  set_throwing_factory();
+  create_and_parse("{\"serial_number\":\"ABCD1234\"}");
+  auto json = write_v();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("hardware fault") != std::string::npos);
 }
 
 TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend returns ok") {
