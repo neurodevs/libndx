@@ -1,5 +1,7 @@
 #include "ndx/usb_provider.hpp"
 
+#include <lsl_c.h>
+
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -22,6 +24,7 @@ std::function<void(std::chrono::milliseconds)> UsbProviderSyscalls::sleep_for =
     [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
 std::function<ssize_t(int, const uint8_t*, size_t)> UsbProviderSyscalls::write =
     [](int fd, const uint8_t* data, size_t len) { return ::write(fd, data, len); };
+std::function<double()> UsbProviderSyscalls::now = []() { return lsl_local_clock(); };
 
 namespace {
 
@@ -118,6 +121,7 @@ void read_available_data(int fd, OnDataCallback on_data) {
   
   if (n > 0 && on_data) {
     Packet p;
+    p.timestamp_sec = UsbProviderSyscalls::now();
     p.data.assign(buf, buf + n);
     on_data(p);
   }

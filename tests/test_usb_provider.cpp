@@ -1,4 +1,5 @@
 #include <catch2/catch_all.hpp>
+#include <lsl_c.h>
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -35,6 +36,7 @@ struct RestoreUsbProviderSyscalls {
     ndx::UsbProviderSyscalls::tcsetattr = ::tcsetattr;
     ndx::UsbProviderSyscalls::sleep_for = [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
     ndx::UsbProviderSyscalls::write = [](int fd, const uint8_t* data, size_t len) { return ::write(fd, data, len); };
+    ndx::UsbProviderSyscalls::now = []() { return lsl_local_clock(); };
   }
 };
 
@@ -327,6 +329,32 @@ TEST_CASE("read_available_data invokes on_data with bytes read from the fd") {
   });
 
   REQUIRE(std::string(received.begin(), received.end()) == sent);
+
+  close(fd);
+}
+
+TEST_CASE("read_available_data calls lsl_local_clock as soon as data arrives") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
+  const std::string sent = "hello";
+  
+  write(pty.master_fd, sent.data(), sent.size());
+  
+  constexpr double fake_timestamp = 1234.5;
+
+  ndx::UsbProviderSyscalls::now = [&]() {
+    return fake_timestamp;
+  };
+
+  double received_timestamp = -1;
+
+  ndx::read_available_data(fd, [&](const ndx::Packet& p) {
+    received_timestamp = p.timestamp_sec;
+  });
+
+  REQUIRE(received_timestamp == fake_timestamp);
 
   close(fd);
 }

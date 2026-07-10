@@ -33,6 +33,7 @@ public:
   static std::function<int(int, int, const termios*)> tcsetattr;
   static std::function<void(std::chrono::milliseconds)> sleep_for;
   static std::function<ssize_t(int, const uint8_t*, size_t)> write;
+  static std::function<double()> now;
 };
 
 int open_usb_serial_port(const std::string& path, speed_t baud);

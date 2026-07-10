@@ -8,7 +8,6 @@ UsbBackend::UsbBackend(const std::string& device_id, std::unique_ptr<UsbProvider
 
 void UsbBackend::start(OnDataCallback on_data, OnConnectedCallback on_connected, int wait_after_connect_ms) {
   AcquisitionBackend::start();
-
   provider_->connect(device_id_, std::move(on_data), std::move(on_connected), wait_after_connect_ms);
 }
 
