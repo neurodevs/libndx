@@ -236,7 +236,7 @@ TEST_CASE("UsbProvider connect throttles its read loop with a 1ms sleep") {
   REQUIRE(sleeps.front() == std::chrono::milliseconds(1));
 }
 
-TEST_CASE("UsbProvider connect waits waitAfterConnectMs before returning") {
+TEST_CASE("UsbProvider connect waits wait_after_connect_ms before returning") {
   RestoreUsbProviderSyscalls restore;
   Pty pty;
 

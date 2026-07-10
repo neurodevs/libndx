@@ -12,7 +12,8 @@ namespace ndx {
 class UsbBackend : public AcquisitionBackend {
 public:
   explicit UsbBackend(const std::string& device_id, std::unique_ptr<UsbProvider> provider);
-  virtual void start(OnDataCallback on_data, OnConnectedCallback on_connected = nullptr);
+  virtual void start(OnDataCallback on_data, OnConnectedCallback on_connected = nullptr,
+                     int wait_after_connect_ms = 0);
   void stop() override;
   virtual bool write(const uint8_t* data, size_t len);
   std::string name() const override { return "UsbBackend"; }

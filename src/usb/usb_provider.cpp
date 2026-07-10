@@ -27,7 +27,7 @@ namespace {
 
 class PosixUsbProvider : public UsbProvider {
 public:
-  void connect(const std::string& device_id, OnDataCallback on_data, OnConnectedCallback on_connected, int waitAfterConnectMs) override {
+  void connect(const std::string& device_id, OnDataCallback on_data, OnConnectedCallback on_connected, int wait_after_connect_ms) override {
     fd_ = open_usb_serial_port(usb_port_path(device_id), B115200);
 
     if (fd_ < 0) {
@@ -35,8 +35,8 @@ public:
                                 " (" + strerror(g_last_open_errno) + ")");
     }
 
-    if (waitAfterConnectMs > 0) {
-      UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(waitAfterConnectMs));
+    if (wait_after_connect_ms > 0) {
+      UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(wait_after_connect_ms));
     }
 
     tcflush(fd_, TCIFLUSH);

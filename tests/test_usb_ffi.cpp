@@ -7,7 +7,7 @@
 namespace {
 
 struct FakeUsbProvider : ndx::UsbProvider {
-  void connect(const std::string&, ndx::OnDataCallback, ndx::OnConnectedCallback, int waitAfterConnectMs = 0) override {}
+  void connect(const std::string&, ndx::OnDataCallback, ndx::OnConnectedCallback, int wait_after_connect_ms = 0) override {}
   void disconnect() override {}
   bool write(const uint8_t*, size_t) override { return false; }
 };
@@ -44,7 +44,7 @@ struct UsbFfiFixture {
     set_usb_factory([](const std::string& uuid) -> std::shared_ptr<ndx::UsbBackend> {
       struct ThrowingUsbBackend : ndx::UsbBackend {
         using ndx::UsbBackend::UsbBackend;
-        void start(ndx::OnDataCallback, ndx::OnConnectedCallback) override { throw std::runtime_error("hardware fault"); }
+        void start(ndx::OnDataCallback, ndx::OnConnectedCallback, int) override { throw std::runtime_error("hardware fault"); }
         void stop() override { throw std::runtime_error("hardware fault"); }
       };
       return std::make_shared<ThrowingUsbBackend>(uuid, ndx::create_usb_provider());

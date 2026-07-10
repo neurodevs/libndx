@@ -10,13 +10,15 @@ struct FakeUsbProvider : ndx::UsbProvider {
   std::string connect_requested_for;
   bool disconnect_called = false;
   ndx::OnDataCallback captured_on_data;
+  int last_wait_after_connect_ms = -1;
 
   void connect(const std::string& device_id,
                ndx::OnDataCallback on_data,
                ndx::OnConnectedCallback,
-               int waitAfterConnectMs = 0) override {
+               int wait_after_connect_ms = 0) override {
     connect_requested_for = device_id;
     captured_on_data = std::move(on_data);
+    last_wait_after_connect_ms = wait_after_connect_ms;
   }
 
   void disconnect() override { disconnect_called = true; }
@@ -93,4 +95,9 @@ TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend write forwards bytes to the prov
   std::vector<uint8_t> data{1, 2, 3};
   REQUIRE(backend.write(data.data(), data.size()));
   REQUIRE(provider->written_data == data);
+}
+
+TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start forwards wait_after_connect_ms to the provider") {
+  backend.start([](const ndx::Packet&) {}, nullptr, 2000);
+  REQUIRE(provider->last_wait_after_connect_ms == 2000);
 }
