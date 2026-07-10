@@ -221,7 +221,9 @@ extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(co
     try {
         auto backend = get_usb_backend(serial_number);
         if (backend) {
-            backend->start([fn = on_data](const ndx::Packet& p) {});
+            backend->start([fn = on_data](const ndx::Packet& p) {
+                fn(p.data.data(), p.data.size(), p.timestamp_sec);
+            });
         }
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {

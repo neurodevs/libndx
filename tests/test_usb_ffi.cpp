@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <nlohmann/json.hpp>
+#include <vector>
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
 #include "ndx/usb_provider.hpp"
@@ -7,10 +8,28 @@
 namespace {
 
 struct FakeUsbProvider : ndx::UsbProvider {
-  void connect(const std::string&, ndx::OnDataCallback, ndx::OnConnectedCallback, int wait_after_connect_ms = 0) override {}
+  ndx::OnDataCallback captured_on_data;
+
+  void connect(const std::string&, ndx::OnDataCallback on_data, ndx::OnConnectedCallback, int wait_after_connect_ms = 0) override {
+    captured_on_data = std::move(on_data);
+  }
   void disconnect() override {}
   bool write(const uint8_t*, size_t) override { return false; }
+
+  void simulate_packet(const ndx::Packet& p) {
+    if (captured_on_data) captured_on_data(p);
+  }
 };
+
+FakeUsbProvider* g_fake_usb_provider = nullptr;
+
+std::vector<uint8_t> g_received_data;
+double g_received_timestamp = -1;
+
+void capture_on_data(const uint8_t* data, size_t len, double timestamp_sec) {
+  g_received_data.assign(data, data + len);
+  g_received_timestamp = timestamp_sec;
+}
 
 }
 
@@ -20,7 +39,9 @@ struct UsbFfiFixture {
   UsbFfiFixture() {
     reset_usb_backends();
     set_usb_factory([](const std::string& serial_number) {
-      return std::make_shared<ndx::UsbBackend>(serial_number, std::make_unique<FakeUsbProvider>());
+      auto provider = std::make_unique<FakeUsbProvider>();
+      g_fake_usb_provider = provider.get();
+      return std::make_shared<ndx::UsbBackend>(serial_number, std::move(provider));
     });
     valid_serial = "ABCD1234";
   }
@@ -97,6 +118,21 @@ TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend calls start on backend") {
     UsbFfiFixture::start();
     auto backend = get_usb_backend(valid_serial);
     REQUIRE(backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend forwards received packets to the on_data callback") {
+  g_received_data.clear();
+  g_received_timestamp = -1;
+
+  start_usb_backend(valid_serial.c_str(), capture_on_data);
+
+  ndx::Packet p;
+  p.data = {1, 2, 3};
+  p.timestamp_sec = 42.0;
+  g_fake_usb_provider->simulate_packet(p);
+
+  REQUIRE(g_received_data == std::vector<uint8_t>{1, 2, 3});
+  REQUIRE(g_received_timestamp == 42.0);
 }
 
 TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend returns ok") {
