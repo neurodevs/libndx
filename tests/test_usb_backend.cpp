@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
+#include <vector>
 #include "ndx/usb_backend.hpp"
 #include "ndx/usb_provider.hpp"
 
@@ -20,7 +21,11 @@ struct FakeUsbProvider : ndx::UsbProvider {
 
   void disconnect() override { disconnect_called = true; }
 
-  bool write(const uint8_t*, size_t) override { return false; }
+  std::vector<uint8_t> written_data;
+  bool write(const uint8_t* data, size_t len) override {
+    written_data.assign(data, data + len);
+    return true;
+  }
 
   void simulate_packet(const ndx::Packet& p) {
     if (captured_on_data) captured_on_data(p);
@@ -81,4 +86,11 @@ TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start throws if already running"
 
 TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend stop throws if not running") {
   REQUIRE_THROWS_WITH(stop(), "UsbBackend: stop called while not running");
+}
+
+TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend write forwards bytes to the provider") {
+  start();
+  std::vector<uint8_t> data{1, 2, 3};
+  REQUIRE(backend.write(data.data(), data.size()));
+  REQUIRE(provider->written_data == data);
 }
