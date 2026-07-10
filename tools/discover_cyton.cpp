@@ -45,8 +45,9 @@ int32_t decode_24bit_signed(const uint8_t* b) {
   return value;
 }
 
-void print_packet(const uint8_t* packet) {
+void print_packet(const uint8_t* packet, double timestamp_sec) {
   printf("Sample %3u:", packet[1]);
+  printf(" t=%.6f", timestamp_sec);
   for (size_t ch = 0; ch < kNumChannels; ch++) {
     printf(" ch%zu=%8d", ch + 1, decode_24bit_signed(&packet[2 + ch * 3]));
   }
@@ -55,8 +56,9 @@ void print_packet(const uint8_t* packet) {
 
 class PacketFramer {
 public:
-  void feed(const uint8_t* data, size_t len) {
+  void feed(const uint8_t* data, size_t len, double timestamp_sec) {
     buffer_.insert(buffer_.end(), data, data + len);
+    last_timestamp_sec_ = timestamp_sec;
 
     while (true) {
       auto start = std::find(buffer_.begin(), buffer_.end(), kPacketStartByte);
@@ -70,13 +72,14 @@ public:
         continue;
       }
 
-      print_packet(buffer_.data());
+      print_packet(buffer_.data(), last_timestamp_sec_);
       buffer_.erase(buffer_.begin(), buffer_.begin() + kPacketSize);
     }
   }
 
 private:
   std::vector<uint8_t> buffer_;
+  double last_timestamp_sec_ = 0.0;
 };
 
 }
@@ -96,7 +99,7 @@ int main() {
 
   try {
     backend.start(
-        [&](const ndx::Packet& p) { framer.feed(p.data.data(), p.data.size()); },
+        [&](const ndx::Packet& p) { framer.feed(p.data.data(), p.data.size(), p.timestamp_sec); },
         nullptr, 2000);
   } catch (const std::exception& e) {
     fprintf(stderr, "✗ Could not connect: %s\n", e.what());
