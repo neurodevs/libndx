@@ -231,6 +231,13 @@ extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(co
     }
 }
 
+extern "C" char* write_usb_backend(const char* serial_number, const char* value) {
+    auto backend = get_usb_backend(serial_number);
+    backend->write(reinterpret_cast<const uint8_t*>(value), strlen(value));
+    return to_ffi_result({{"status", 200}});
+    
+}
+
 extern "C" char* stop_usb_backend(const char* serial_number) {
     try {
         return stop_backend(serial_number, get_usb_backend);

@@ -14,7 +14,12 @@ struct FakeUsbProvider : ndx::UsbProvider {
     captured_on_data = std::move(on_data);
   }
   void disconnect() override {}
-  bool write(const uint8_t*, size_t) override { return false; }
+
+  std::vector<uint8_t> written_data;
+  bool write(const uint8_t* data, size_t len) override {
+    written_data.assign(data, data + len);
+    return true;
+  }
 
   void simulate_packet(const ndx::Packet& p) {
     if (captured_on_data) captured_on_data(p);
@@ -49,6 +54,10 @@ struct UsbFfiFixture {
   nlohmann::json create_and_parse(const char* config_json) {
     const char* result = create_usb_backend(config_json);
     return nlohmann::json::parse(result);
+  }
+
+  nlohmann::json write_v() {
+    return nlohmann::json::parse(write_usb_backend(valid_serial.c_str(), "v"));
   }
 
   nlohmann::json start() {
@@ -133,6 +142,16 @@ TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend forwards received packets t
 
   REQUIRE(g_received_data == std::vector<uint8_t>{1, 2, 3});
   REQUIRE(g_received_timestamp == 42.0);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "write_usb_backend returns ok") {
+  auto json = write_v();
+  REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "write_usb_backend forwards bytes to the provider") {
+  auto json = write_v();
+  REQUIRE(g_fake_usb_provider->written_data == std::vector<uint8_t>{'v'});
 }
 
 TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend returns ok") {
