@@ -1,4 +1,4 @@
-#include "ndx/usb_provider.hpp"
+#include "ndx/usb_backend.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -91,12 +91,11 @@ int main() {
   printf("→ Found device %s\n", serial.c_str());
   printf("→ Connecting (waiting for the dongle to boot)...\n");
 
-  auto provider = ndx::create_usb_provider();
+  ndx::UsbBackend backend(serial, ndx::create_usb_provider());
   PacketFramer framer;
 
   try {
-    provider->connect(
-        serial,
+    backend.start(
         [&](const ndx::Packet& p) { framer.feed(p.data.data(), p.data.size()); },
         nullptr, 2000);
   } catch (const std::exception& e) {
@@ -110,17 +109,17 @@ int main() {
   printf("----------------------------------------\n");
 
   const char* reset_command = "v";
-  provider->write(reinterpret_cast<const uint8_t*>(reset_command), strlen(reset_command));
+  backend.write(reinterpret_cast<const uint8_t*>(reset_command), strlen(reset_command));
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   printf("→ Starting stream...\n");
   const char* start_stream_command = "b";
-  provider->write(reinterpret_cast<const uint8_t*>(start_stream_command), strlen(start_stream_command));
+  backend.write(reinterpret_cast<const uint8_t*>(start_stream_command), strlen(start_stream_command));
 
   while (!g_should_exit) std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   printf("\n→ Disconnecting...\n");
-  provider->disconnect();
+  backend.stop();
   return 0;
 }
