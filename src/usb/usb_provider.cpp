@@ -38,11 +38,11 @@ public:
                                 " (" + strerror(g_last_open_errno) + ")");
     }
 
+    tcflush(fd_, TCIFLUSH);
+
     if (wait_after_connect_ms > 0) {
       UsbProviderSyscalls::sleep_for(std::chrono::milliseconds(wait_after_connect_ms));
     }
-
-    tcflush(fd_, TCIFLUSH);
 
     if (on_connected) {
       Device device{device_id, device_id};

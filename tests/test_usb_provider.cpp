@@ -286,6 +286,46 @@ TEST_CASE("UsbProvider connect discards data buffered before it finishes connect
   REQUIRE(received_str.find(boot_chatter) == std::string::npos);
 }
 
+TEST_CASE("UsbProvider connect does not discard data that arrives during the wait_after_connect_ms window") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) {
+    return ::open(pty.slave_path, flags);
+  };
+
+  const std::string banner = "OpenBCI V3 boot banner $$$";
+  ndx::UsbProviderSyscalls::sleep_for = [&](std::chrono::milliseconds d) {
+    if (d == std::chrono::milliseconds(2000)) {
+      write(pty.master_fd, banner.data(), banner.size());
+      return;
+    }
+    std::this_thread::sleep_for(d);
+  };
+
+  std::mutex received_mutex;
+  std::vector<uint8_t> received;
+  auto provider = ndx::create_usb_provider();
+  provider->connect("ABCD1234", [&](const ndx::Packet& p) {
+    std::lock_guard<std::mutex> lock(received_mutex);
+    received.insert(received.end(), p.data.begin(), p.data.end());
+  }, nullptr, 2000);
+  DisconnectGuard guard{provider.get()};
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  std::string received_str;
+  while (std::chrono::steady_clock::now() < deadline) {
+    {
+      std::lock_guard<std::mutex> lock(received_mutex);
+      received_str = std::string(received.begin(), received.end());
+    }
+    if (received_str.find("$$$") != std::string::npos) break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  REQUIRE(received_str.find("$$$") != std::string::npos);
+}
+
 TEST_CASE("write_usb_serial_port writes bytes to the fd") {
   Pty pty;
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
