@@ -9,7 +9,8 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
   ndx::OnConnectedCallback on_connected;
   bool is_powered_on() override { return true; }
-  void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback connected) override {
+  void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback connected,
+                           ndx::OnDisconnectedCallback) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
     on_connected = std::move(connected);
   }
@@ -113,7 +114,7 @@ struct BleFfiFixture {
     set_ble_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleBackend> {
       struct ThrowingBleBackend : ndx::BleBackend {
         using ndx::BleBackend::BleBackend;
-        void start(ndx::CharCallbacks, ndx::OnConnectedCallback) override { throw std::runtime_error("internal server error"); }
+        void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnDisconnectedCallback) override { throw std::runtime_error("internal server error"); }
         void add_char_callbacks(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { return 0; }

@@ -75,13 +75,16 @@ public:
     on_advertisement_data_(packet);
   }
 
-  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected) override {
+  void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected,
+                           ndx::OnDisconnectedCallback on_disconnected) override {
     NSString* uuid_ns = [NSString stringWithUTF8String:uuid.c_str()];
     __block auto cbs = std::move(callbacks);
     __block auto on_conn = std::move(on_connected);
+    __block auto on_disconn = std::move(on_disconnected);
     dispatch_async(ble_queue_, ^{
       peripheral_target_id_ = uuid_ns;
       on_connected_ = std::move(on_conn);
+      on_disconnected_ = std::move(on_disconn);
       for (auto& entry : cbs)
         char_callbacks_[entry.char_uuid] = std::move(entry.on_data);
       [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
@@ -247,8 +250,6 @@ public:
   }
 
 private:
-  // Returns allowDuplicates:YES if advertisement mode is active, so both
-  // modes can coexist on the single CBCentralManager scan.
   NSDictionary* advertisementScanOptions() {
     if (advertisement_target_id_)
       return @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
@@ -265,7 +266,7 @@ private:
   NSString* advertisement_target_id_ = nil;
   std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
   OnDataCallback on_advertisement_data_;
-  ndx::OnConnectedCallback on_connected_;
+  ndx::OnDisconnectedCallback on_disconnected_;
   int rssi_ = 0;
   bool rssi_timer_active_ = false;
   uint64_t rssi_generation_ = 0;

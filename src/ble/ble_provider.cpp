@@ -6,7 +6,8 @@ namespace ndx {
 class BleProviderImpl : public BleProvider {
 public:
   bool is_powered_on() override { return false; }
-  void scan_for_peripheral(const std::string&, ndx::CharCallbacks,  ndx::OnConnectedCallback) override {}
+  void scan_for_peripheral(const std::string&, ndx::CharCallbacks,  ndx::OnConnectedCallback,
+                           ndx::OnDisconnectedCallback) override {}
   void add_char_callbacks(ndx::CharCallbacks) override {}
 };
 

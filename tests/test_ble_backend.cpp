@@ -27,9 +27,17 @@ struct FakeBleProvider : ndx::BleProvider {
     last_write_data.assign(data, data + len);
   }
 
-  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback) override {
+  ndx::OnDisconnectedCallback on_disconnected;
+
+  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback,
+                           ndx::OnDisconnectedCallback on_disconnected_cb) override {
     scan_requested_for = uuid;
+    on_disconnected = std::move(on_disconnected_cb);
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
+  }
+
+  void simulate_unexpected_disconnect() {
+    if (on_disconnected) on_disconnected(false);
   }
 
   bool add_char_callbacks_called = false;
@@ -139,6 +147,19 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is n
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with device_id") {
   start();
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
+}
+
+TEST_CASE_METHOD(BleBackendFixture, "BleBackend reports an unexpected disconnect and stays running") {
+  int disconnects = 0;
+  bool reported_intentional = true;
+  backend.start({}, nullptr, [&](bool intentional) {
+    disconnects++;
+    reported_intentional = intentional;
+  });
+  provider->simulate_unexpected_disconnect();
+  REQUIRE(disconnects == 1);
+  REQUIRE_FALSE(reported_intentional);
+  REQUIRE(backend.is_running());
 }
 
 TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect false") {
