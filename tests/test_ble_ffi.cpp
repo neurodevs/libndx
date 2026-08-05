@@ -17,6 +17,7 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void add_char_callbacks(ndx::CharCallbacks cbs) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
+  void listen_for_advertisements(const std::string&, ndx::OnDataCallback) override {}
   bool discover_ble_uuid_called = false;
   std::function<void(const std::string&)> discover_ble_uuid_callback;
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)> cb) override {

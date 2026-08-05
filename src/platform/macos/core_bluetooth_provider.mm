@@ -54,7 +54,7 @@ public:
     });
   }
 
-  void scanForAdvertisement(const std::string& uuid, OnDataCallback on_advertisement_data) {
+  void listen_for_advertisements(const std::string& uuid, ndx::OnDataCallback on_advertisement_data) override {
     advertisement_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     on_advertisement_data_ = on_advertisement_data;
     NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};

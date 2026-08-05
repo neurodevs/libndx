@@ -9,6 +9,7 @@ public:
   void scan_for_peripheral(const std::string&, ndx::CharCallbacks,  ndx::OnConnectedCallback,
                            ndx::OnDisconnectedCallback) override {}
   void add_char_callbacks(ndx::CharCallbacks) override {}
+  void listen_for_advertisements(const std::string&, ndx::OnDataCallback) override {}
 };
 
 std::unique_ptr<BleProvider> create_ble_provider() {
