@@ -266,6 +266,7 @@ private:
   NSString* advertisement_target_id_ = nil;
   std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
   OnDataCallback on_advertisement_data_;
+  ndx::OnConnectedCallback on_connected_;
   ndx::OnDisconnectedCallback on_disconnected_;
   int rssi_ = 0;
   bool rssi_timer_active_ = false;
