@@ -9,7 +9,7 @@ find_package(nlohmann_json REQUIRED)
 set(NDX_SOURCES
   src/ndx_ffi.cpp
   src/acquisition_backend.cpp
-  src/ble/ble_backend.cpp
+  src/ble/ble_gatt_backend.cpp
   src/bluetooth/bluetooth_backend.cpp
   src/usb/usb_backend.cpp
   src/usb/usb_provider.cpp
@@ -61,7 +61,7 @@ FetchContent_MakeAvailable(Catch2)
 enable_testing()
 
 add_executable(ndx_tests
-  tests/test_ble_backend.cpp
+  tests/test_ble_gatt_backend.cpp
   tests/test_ble_ffi.cpp
   tests/test_ble_provider.cpp
   tests/test_bluetooth_backend.cpp

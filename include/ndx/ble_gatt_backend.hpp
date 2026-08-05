@@ -6,9 +6,9 @@
 
 namespace ndx {
 
-class BleBackend : public AcquisitionBackend {
+class BleGattBackend : public AcquisitionBackend {
 public:
-  explicit BleBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
+  explicit BleGattBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
   virtual void start(CharCallbacks callbacks, ndx::OnConnectedCallback on_connected = nullptr,
                      ndx::OnDisconnectedCallback on_disconnected = nullptr);
   virtual void add_char_callbacks(CharCallbacks callbacks);
@@ -17,7 +17,7 @@ public:
   virtual void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi);
   virtual void stop_rssi_interval();
   virtual void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len);
-  std::string name() const override { return "BleBackend"; }
+  std::string name() const override { return "BleGattBackend"; }
 
 private:
   std::unique_ptr<BleProvider> provider_;

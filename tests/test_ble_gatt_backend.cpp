@@ -2,7 +2,7 @@
 #include <functional>
 #include <unordered_map>
 #include "ndx/acquisition_backend.hpp"
-#include "ndx/ble_backend.hpp"
+#include "ndx/ble_gatt_backend.hpp"
 
 struct FakeBleProvider : ndx::BleProvider {
   bool powered_on = true;
@@ -59,16 +59,16 @@ struct FakeBleProvider : ndx::BleProvider {
   }
 };
 
-struct TestableBleBackend : ndx::BleBackend {
-  using ndx::BleBackend::BleBackend;
+struct TestableBleGattBackend : ndx::BleGattBackend {
+  using ndx::BleGattBackend::BleGattBackend;
   using ndx::AcquisitionBackend::is_intentional_disconnect;
 };
 
-struct BleBackendFixture {
+struct BleGattBackendFixture {
   FakeBleProvider* provider;
-  TestableBleBackend backend;
+  TestableBleGattBackend backend;
 
-  BleBackendFixture()
+  BleGattBackendFixture()
     : provider(new FakeBleProvider()),
       backend("A1:B2:C3:D4:E5:F6", std::unique_ptr<ndx::BleProvider>(provider)) {}
 
@@ -82,16 +82,16 @@ struct BleBackendFixture {
 
 };
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend can be instantiated") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend can be instantiated") {
   REQUIRE(true);
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend start sets is_running to true") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start sets is_running to true") {
   start();
   REQUIRE(backend.is_running());
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend invokes callback when packet received") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend invokes callback when packet received") {
   bool called = false;
   const std::string uuid = "test-char-uuid";
   backend.start({{uuid, std::nullopt, [&](const ndx::Packet&) { called = true; }}});
@@ -99,7 +99,7 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend invokes callback when packet rec
   REQUIRE(called);
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend only invokes callback for matching char UUID") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend only invokes callback for matching char UUID") {
   int a_calls = 0, b_calls = 0;
   backend.start({
     {"uuid-a", std::nullopt, [&](const ndx::Packet&) { a_calls++; }},
@@ -110,46 +110,46 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend only invokes callback for matchi
   REQUIRE(b_calls == 0);
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend does not invoke callback for unregistered char UUID") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend does not invoke callback for unregistered char UUID") {
   bool called = false;
   backend.start({{"uuid-a", std::nullopt, [&](const ndx::Packet&) { called = true; }}});
   provider->simulate_packet(ndx::Packet{}, "uuid-b");
   REQUIRE_FALSE(called);
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop sets is_running to false") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend stop sets is_running to false") {
   start();
   stop();
   REQUIRE_FALSE(backend.is_running());
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop throws if not running") {
-  REQUIRE_THROWS_WITH(stop(), "BleBackend: stop called while not running");
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend stop throws if not running") {
+  REQUIRE_THROWS_WITH(stop(), "BleGattBackend: stop called while not running");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend stop calls stop on provider") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend stop calls stop on provider") {
   start();
   stop();
 
   REQUIRE(provider->disconnect_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws if already running") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start throws if already running") {
   start();
-  REQUIRE_THROWS_WITH(start(), "BleBackend: start called while already running");
+  REQUIRE_THROWS_WITH(start(), "BleGattBackend: start called while already running");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend start throws when Bluetooth is not powered on") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start throws when Bluetooth is not powered on") {
   provider->powered_on = false;
-  REQUIRE_THROWS_WITH(start(), "BleBackend: Bluetooth is not powered on");
+  REQUIRE_THROWS_WITH(start(), "BleGattBackend: Bluetooth is not powered on");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend start scans for peripheral with device_id") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start scans for peripheral with device_id") {
   start();
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend reports an unexpected disconnect and stays running") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports an unexpected disconnect and stays running") {
   int disconnects = 0;
   bool reported_intentional = true;
   backend.start({}, nullptr, [&](bool intentional) {
@@ -162,24 +162,24 @@ TEST_CASE_METHOD(BleBackendFixture, "BleBackend reports an unexpected disconnect
   REQUIRE(backend.is_running());
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend sets is_intentional_disconnect false") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend sets is_intentional_disconnect false") {
   REQUIRE_FALSE(backend.is_intentional_disconnect());
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend write_characteristic forwards data to provider") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend write_characteristic forwards data to provider") {
   const uint8_t data[] = {0x02, 'h', '\n'};
   backend.write_characteristic("273E0001-4C4D-454D-96BE-F03BAC821358", data, sizeof(data));
   REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
   REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x02, 'h', '\n'});
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend add_char_callbacks forwards to provider") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend add_char_callbacks forwards to provider") {
   start();
   backend.add_char_callbacks({{"added-uuid", std::nullopt, [](const ndx::Packet&) {}}});
   REQUIRE(provider->add_char_callbacks_called);
 }
 
-TEST_CASE_METHOD(BleBackendFixture, "BleBackend add_char_callbacks routes packets to the added callback") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend add_char_callbacks routes packets to the added callback") {
   start();
   bool called = false;
   backend.add_char_callbacks({{"added-uuid", std::nullopt, [&](const ndx::Packet&) { called = true; }}});

@@ -29,7 +29,7 @@ static void after(double seconds, dispatch_block_t block) {
 static void write_start_commands() {
   const char* commands[] = {"h", "p50", "s", "d"};
   for (const char* cmd : commands) {
-    free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, cmd));
+    free(write_ble_gatt_char(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, cmd));
   }
 }
 
@@ -45,13 +45,13 @@ int main() {
     {"273E0011-4C4D-454D-96BE-F03BAC821358", "PPG_RED",      on_char_data},
   };
 
-  free(create_ble_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
-  free(start_ble_backend(MUSE_DEVICE_UUID, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
-  free(set_ble_rssi_interval(MUSE_DEVICE_UUID, 1000, on_rssi));
+  free(create_ble_gatt_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
+  free(start_ble_gatt_backend(MUSE_DEVICE_UUID, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
+  free(start_ble_gatt_rssi_polling(MUSE_DEVICE_UUID, 1000, on_rssi));
 
   after(5.0, ^{ write_start_commands(); });
-  after(10.0, ^{ free(write_ble_characteristic(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });
-  after(12.0, ^{ free(stop_ble_backend(MUSE_DEVICE_UUID)); exit(0); });
+  after(10.0, ^{ free(write_ble_gatt_char(MUSE_DEVICE_UUID, CONTROL_CHAR_UUID, "h")); });
+  after(12.0, ^{ free(stop_ble_gatt_backend(MUSE_DEVICE_UUID)); exit(0); });
 
   [[NSRunLoop currentRunLoop] run];
   return 0;

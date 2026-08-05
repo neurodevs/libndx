@@ -9,30 +9,30 @@
 #include "ndx/ndx_ffi.hpp"
 #include "ndx/ndx_ffi_impl.hpp"
 #include "ndx/acquisition_backend.hpp"
-#include "ndx/ble_backend.hpp"
+#include "ndx/ble_gatt_backend.hpp"
 #include "ndx/ble_provider.hpp"
 #include "ndx/usb_backend.hpp"
 #include "ndx/usb_provider.hpp"
 
-static std::unordered_map<std::string, std::shared_ptr<ndx::BleBackend>> g_ble_backends;
+static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
-static BleFactory g_ble_factory = [](const std::string& device_uuid) {
-    return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
+static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
+    return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());
 };
 
 static BleProviderFactory g_ble_provider_factory = []() {
     return ndx::create_ble_provider();
 };
 
-std::shared_ptr<ndx::BleBackend> get_ble_backend(const std::string& device_uuid) {
-    auto it = g_ble_backends.find(device_uuid);
-    return it != g_ble_backends.end() ? it->second : nullptr;
+std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& device_uuid) {
+    auto it = g_ble_gatt_backends.find(device_uuid);
+    return it != g_ble_gatt_backends.end() ? it->second : nullptr;
 }
 
-static bool is_ble_registered(const std::string& device_uuid) {
-    return g_ble_backends.count(device_uuid) > 0;
+static bool is_ble_gatt_registered(const std::string& device_uuid) {
+    return g_ble_gatt_backends.count(device_uuid) > 0;
 }
 
 static UsbFactory g_usb_factory = [](const std::string& serial_number) {
@@ -68,7 +68,7 @@ extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_
     }
 }
 
-extern "C" char* create_ble_backend(const char* config_json) {
+extern "C" char* create_ble_gatt_backend(const char* config_json) {
     try {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
@@ -86,16 +86,16 @@ extern "C" char* create_ble_backend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
         }
 
-        if (is_ble_registered(uuid)) {
+        if (is_ble_gatt_registered(uuid)) {
             return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
         }
 
         auto sit = g_ble_scanners.find(uuid);
         if (sit != g_ble_scanners.end()) {
-            g_ble_backends[uuid] = std::make_shared<ndx::BleBackend>(uuid, std::move(sit->second));
+            g_ble_gatt_backends[uuid] = std::make_shared<ndx::BleGattBackend>(uuid, std::move(sit->second));
             g_ble_scanners.erase(sit);
         } else {
-            g_ble_backends[uuid] = g_ble_factory(uuid);
+            g_ble_gatt_backends[uuid] = g_ble_gatt_factory(uuid);
         }
         return to_ffi_result({{"status", 200}});
     } catch (const std::exception& e) {
@@ -103,9 +103,9 @@ extern "C" char* create_ble_backend(const char* config_json) {
     }
 }
 
-extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
     try {
-        auto backend = get_ble_backend(device_uuid);
+        auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         ndx::CharCallbacks cbs;
         for (size_t i = 0; i < num_callbacks; ++i) {
@@ -126,9 +126,9 @@ extern "C" char* start_ble_backend(const char* device_uuid, on_connected_fn on_c
     }
 }
 
-extern "C" char* add_ble_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* register_ble_gatt_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
     try {
-        auto backend = get_ble_backend(device_uuid);
+        auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         ndx::CharCallbacks cbs;
         for (size_t i = 0; i < num_callbacks; ++i) {
@@ -144,9 +144,9 @@ extern "C" char* add_ble_char_callbacks(const char* device_uuid, const CharCallb
     }
 }
 
-extern "C" char* write_ble_characteristic(const char* device_uuid, const char* char_uuid, const char* cmd) {
+extern "C" char* write_ble_gatt_char(const char* device_uuid, const char* char_uuid, const char* cmd) {
     try {
-        auto backend = get_ble_backend(device_uuid);
+        auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         size_t cmd_len = strlen(cmd);
         std::vector<char> buf(cmd_len + 2);
@@ -160,9 +160,9 @@ extern "C" char* write_ble_characteristic(const char* device_uuid, const char* c
     }
 }
 
-extern "C" char* set_ble_rssi_interval(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi) {
+extern "C" char* start_ble_gatt_rssi_polling(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi) {
     try {
-        auto backend = get_ble_backend(device_uuid);
+        auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         backend->set_rssi_interval(interval_ms, [on_rssi](int rssi) { on_rssi(rssi); });
         return to_ffi_result({{"status", 200}});
@@ -171,9 +171,9 @@ extern "C" char* set_ble_rssi_interval(const char* device_uuid, int interval_ms,
     }
 }
 
-extern "C" char* stop_ble_rssi_interval(const char* device_uuid) {
+extern "C" char* stop_ble_gatt_rssi_polling(const char* device_uuid) {
     try {
-        auto backend = get_ble_backend(device_uuid);
+        auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         backend->stop_rssi_interval();
         return to_ffi_result({{"status", 200}});
@@ -182,10 +182,10 @@ extern "C" char* stop_ble_rssi_interval(const char* device_uuid) {
     }
 }
 
-extern "C" char* stop_ble_backend(const char* device_uuid)  {
+extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
     try {
-        auto result = stop_backend(device_uuid, get_ble_backend);
-        g_ble_backends.erase(device_uuid);
+        auto result = stop_backend(device_uuid, get_ble_gatt_backend);
+        g_ble_gatt_backends.erase(device_uuid);
         return result;
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
@@ -252,11 +252,11 @@ extern "C" char* stop_usb_backend(const char* serial_number) {
 
 // For tests only
 
-void reset_ble_backends() {
-    g_ble_backends.clear();
+void reset_ble_gatt_backends() {
+    g_ble_gatt_backends.clear();
     g_ble_scanners.clear();
-    g_ble_factory = [](const std::string& device_uuid) {
-        return std::make_shared<ndx::BleBackend>(device_uuid, ndx::create_ble_provider());
+    g_ble_gatt_factory = [](const std::string& device_uuid) {
+        return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());
     };
     g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
 }
@@ -268,8 +268,8 @@ void reset_usb_backends() {
     };
 }
 
-void set_ble_factory(BleFactory factory) {
-    g_ble_factory = factory;
+void set_ble_gatt_factory(BleGattFactory factory) {
+    g_ble_gatt_factory = factory;
 }
 
 void set_ble_provider_factory(BleProviderFactory factory) {

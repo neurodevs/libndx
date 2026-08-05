@@ -40,7 +40,7 @@ static void after(double seconds, dispatch_block_t block) {
 static void write_start_commands() {
   const char* commands[] = {"h", "p50", "s", "d"};
   for (const char* cmd : commands) {
-    free(write_ble_characteristic(discovered_uuid, CONTROL_CHAR_UUID, cmd));
+    free(write_ble_gatt_char(discovered_uuid, CONTROL_CHAR_UUID, cmd));
   }
 }
 
@@ -54,13 +54,13 @@ int main() {
   after(5.0, ^{
     if (!discovered_uuid) { printf("Discovery did not complete in time\n"); exit(1); }
     std::string config = std::string("{\"uuid\":\"") + discovered_uuid + "\"}";
-    free(create_ble_backend(config.c_str()));
-    free(start_ble_backend(discovered_uuid, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
-    free(set_ble_rssi_interval(discovered_uuid, 1000, on_rssi));
+    free(create_ble_gatt_backend(config.c_str()));
+    free(start_ble_gatt_backend(discovered_uuid, on_connected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
+    free(start_ble_gatt_rssi_polling(discovered_uuid, 1000, on_rssi));
   });
   after(7.0, ^{ write_start_commands(); });
-  after(9.0, ^{ free(write_ble_characteristic(discovered_uuid, CONTROL_CHAR_UUID, "h")); });
-  after(11.0, ^{ free(stop_ble_backend(discovered_uuid)); exit(0); });
+  after(9.0, ^{ free(write_ble_gatt_char(discovered_uuid, CONTROL_CHAR_UUID, "h")); });
+  after(11.0, ^{ free(stop_ble_gatt_backend(discovered_uuid)); exit(0); });
 
   [[NSRunLoop currentRunLoop] run];
   return 0;

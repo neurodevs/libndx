@@ -62,18 +62,18 @@ struct BleFfiFixture {
   AlwaysOnBleProvider* provider = nullptr;
 
   BleFfiFixture() {
-    reset_ble_backends();
-    set_ble_factory([this](const std::string& uuid) {
+    reset_ble_gatt_backends();
+    set_ble_gatt_factory([this](const std::string& uuid) {
       auto p = std::make_unique<AlwaysOnBleProvider>();
       provider = p.get();
-      return std::make_shared<ndx::BleBackend>(uuid, std::move(p));
+      return std::make_shared<ndx::BleGattBackend>(uuid, std::move(p));
     });
     valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
   }
 
   nlohmann::json create_and_parse(std::string uuid) {
     std::string config_json = "{\"uuid\":\"" + uuid + "\"}";
-    const char* result = create_ble_backend(config_json.c_str());
+    const char* result = create_ble_gatt_backend(config_json.c_str());
     return nlohmann::json::parse(result);
   }
 
@@ -83,37 +83,37 @@ struct BleFfiFixture {
 
   nlohmann::json start() {
     static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
-    const char* result = start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+    const char* result = start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json write(const char* char_uuid = "char-uuid", const char* cmd = "p50") {
-    const char* result = write_ble_characteristic(valid_uuid.c_str(), char_uuid, cmd);
+    const char* result = write_ble_gatt_char(valid_uuid.c_str(), char_uuid, cmd);
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json stop() {
-    const char* result = stop_ble_backend(valid_uuid.c_str());
+    const char* result = stop_ble_gatt_backend(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json set_rssi_interval(int interval_ms = 5000) {
     static on_rssi_fn fn = [](int) {};
-    const char* result = set_ble_rssi_interval(valid_uuid.c_str(), interval_ms, fn);
+    const char* result = start_ble_gatt_rssi_polling(valid_uuid.c_str(), interval_ms, fn);
     return nlohmann::json::parse(result);
   }
 
   nlohmann::json stop_rssi_interval() {
-    const char* result = stop_ble_rssi_interval(valid_uuid.c_str());
+    const char* result = stop_ble_gatt_rssi_polling(valid_uuid.c_str());
     return nlohmann::json::parse(result);
   }
 
   std::string valid_uuid;
 
   void set_throwing_factory() {
-    set_ble_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleBackend> {
-      struct ThrowingBleBackend : ndx::BleBackend {
-        using ndx::BleBackend::BleBackend;
+    set_ble_gatt_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleGattBackend> {
+      struct ThrowingBleGattBackend : ndx::BleGattBackend {
+        using ndx::BleGattBackend::BleGattBackend;
         void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnDisconnectedCallback) override { throw std::runtime_error("internal server error"); }
         void add_char_callbacks(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
@@ -124,7 +124,7 @@ struct BleFfiFixture {
           throw std::runtime_error("internal server error");
         }
       };
-      return std::make_shared<ThrowingBleBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
+      return std::make_shared<ThrowingBleGattBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
   }
 };
@@ -133,46 +133,46 @@ struct ValidBleFixture : BleFfiFixture {
   nlohmann::json json = create_and_parse_valid();
 };
 
-TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend returns ok") {
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend constructs BleBackend instance") {
-    auto backend = get_ble_backend(valid_uuid);
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend constructs BleGattBackend instance") {
+    auto backend = get_ble_gatt_backend(valid_uuid);
     REQUIRE(backend != nullptr);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend sets proper uuid on backend") {
-    auto backend = get_ble_backend(valid_uuid);
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend sets proper uuid on backend") {
+    auto backend = get_ble_gatt_backend(valid_uuid);
     REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend returns 400 if uuid is already registered") {
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend returns 400 if uuid is already registered") {
     auto json = create_and_parse_valid();
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "uuid already registered");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 400 if uuid is not size 36") {
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid is not size 36") {
     auto json = create_and_parse("not-a-valid-uuid");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid uuid");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 400 if uuid does not contain 4 hyphens") {
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid does not contain 4 hyphens") {
     auto json = create_and_parse("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "invalid uuid");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 400 if JSON is malformed") {
-    auto json = nlohmann::json::parse(create_ble_backend("{"));
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if JSON is malformed") {
+    auto json = nlohmann::json::parse(create_ble_gatt_backend("{"));
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "malformed JSON");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 500 on unexpected throw") {
-  set_ble_factory([](const std::string&) -> std::shared_ptr<ndx::BleBackend> {
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 500 on unexpected throw") {
+  set_ble_gatt_factory([](const std::string&) -> std::shared_ptr<ndx::BleGattBackend> {
     throw std::runtime_error("internal server error");
   });
   auto json = create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
@@ -180,18 +180,18 @@ TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 500 on unexpected th
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend returns ok") {
     auto json = BleFfiFixture::start();
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend calls start on backend") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend calls start on backend") {
     BleFfiFixture::start();
-    auto backend = get_ble_backend(valid_uuid);
+    auto backend = get_ble_gatt_backend(valid_uuid);
     REQUIRE(backend->is_running());
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when packet fires") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes C callback when packet fires") {
   static double received_timestamp_sec = 0.0;
   static std::vector<uint8_t> received_data;
 
@@ -201,14 +201,14 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes C callback when pac
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
   provider->simulate_packet({{42, 43}, 1.0});
 
   REQUIRE(received_data == std::vector<uint8_t>{42, 43});
   REQUIRE(received_timestamp_sec == Catch::Approx(1.0));
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend preserves sub-millisecond timestamp precision") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend preserves sub-millisecond timestamp precision") {
   static double received_timestamp_sec = 0.0;
 
   static on_data_fn fn = [](const uint8_t*, size_t, double timestamp_sec) {
@@ -216,27 +216,27 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend preserves sub-millisecond t
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
   provider->simulate_packet({{}, 1750123456.7891234});
 
   REQUIRE(received_timestamp_sec == Catch::Approx(1750123456.7891234).epsilon(1e-9));
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend routes multiple callbacks to their respective char UUIDs") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend routes multiple callbacks to their respective char UUIDs") {
   static int a_calls = 0, b_calls = 0;
   static CharCallback cbs[] = {
     {"char-a", nullptr, [](const uint8_t*, size_t, double) { a_calls++; }},
     {"char-b", nullptr, [](const uint8_t*, size_t, double) { b_calls++; }},
   };
 
-  start_ble_backend(valid_uuid.c_str(), nullptr, cbs, 2);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, cbs, 2);
   provider->simulate_packet(ndx::Packet{});
 
   REQUIRE(a_calls == 1);
   REQUIRE(b_calls == 1);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "start_ble_backend returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "start_ble_gatt_backend returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::start();
@@ -244,59 +244,59 @@ TEST_CASE_METHOD(BleFfiFixture, "start_ble_backend returns 500 on unexpected thr
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "add_ble_char_callbacks returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "register_ble_gatt_char_callbacks returns ok") {
   BleFfiFixture::start();
   static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
-  auto json = nlohmann::json::parse(add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1));
+  auto json = nlohmann::json::parse(register_ble_gatt_char_callbacks(valid_uuid.c_str(), &cb, 1));
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "add_ble_char_callbacks routes packets to the added callback") {
+TEST_CASE_METHOD(ValidBleFixture, "register_ble_gatt_char_callbacks routes packets to the added callback") {
   static bool called = false;
   called = false;
   static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) { called = true; }};
 
   BleFfiFixture::start();
-  add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1);
+  register_ble_gatt_char_callbacks(valid_uuid.c_str(), &cb, 1);
   provider->simulate_packet(ndx::Packet{});
 
   REQUIRE(called);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "add_ble_char_callbacks returns 400 if backend not found") {
+TEST_CASE_METHOD(BleFfiFixture, "register_ble_gatt_char_callbacks returns 400 if backend not found") {
   static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
-  auto json = nlohmann::json::parse(add_ble_char_callbacks("unknown-uuid", &cb, 1));
+  auto json = nlohmann::json::parse(register_ble_gatt_char_callbacks("unknown-uuid", &cb, 1));
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "add_ble_char_callbacks returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "register_ble_gatt_char_callbacks returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   static CharCallback cb{"added-char", nullptr, [](const uint8_t*, size_t, double) {}};
-  auto json = nlohmann::json::parse(add_ble_char_callbacks(valid_uuid.c_str(), &cb, 1));
+  auto json = nlohmann::json::parse(register_ble_gatt_char_callbacks(valid_uuid.c_str(), &cb, 1));
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "write_ble_gatt_char returns ok") {
     auto json = BleFfiFixture::write();
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 400 if backend not found") {
-  auto json = nlohmann::json::parse(write_ble_characteristic("unknown-uuid", "char-uuid", ""));
+TEST_CASE_METHOD(BleFfiFixture, "write_ble_gatt_char returns 400 if backend not found") {
+  auto json = nlohmann::json::parse(write_ble_gatt_char("unknown-uuid", "char-uuid", ""));
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "write_ble_characteristic forwards data to provider") {
+TEST_CASE_METHOD(ValidBleFixture, "write_ble_gatt_char forwards data to provider") {
   BleFfiFixture::write("273E0001-4C4D-454D-96BE-F03BAC821358", "p50");
   REQUIRE(provider->last_write_char_uuid == "273E0001-4C4D-454D-96BE-F03BAC821358");
   REQUIRE(provider->last_write_data == std::vector<uint8_t>{0x04, 'p', '5', '0', '\n'});
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "write_ble_gatt_char returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::write();
@@ -304,26 +304,26 @@ TEST_CASE_METHOD(BleFfiFixture, "write_ble_characteristic returns 500 on unexpec
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_rssi_polling returns ok") {
   auto json = BleFfiFixture::set_rssi_interval();
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval starts interval on provider with given ms") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_rssi_polling starts interval on provider with given ms") {
   BleFfiFixture::set_rssi_interval(3000);
   REQUIRE(provider->rssi_interval_active);
   REQUIRE(provider->rssi_interval_ms == 3000);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "set_ble_rssi_interval invokes callback with rssi value") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_rssi_polling invokes callback with rssi value") {
   static int received = 0;
   static on_rssi_fn fn = [](int rssi) { received = rssi; };
-  set_ble_rssi_interval(valid_uuid.c_str(), 1000, fn);
+  start_ble_gatt_rssi_polling(valid_uuid.c_str(), 1000, fn);
   provider->simulate_rssi(-68);
   REQUIRE(received == -68);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "set_ble_rssi_interval returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "start_ble_gatt_rssi_polling returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   auto json = BleFfiFixture::set_rssi_interval();
@@ -331,19 +331,19 @@ TEST_CASE_METHOD(BleFfiFixture, "set_ble_rssi_interval returns 500 on unexpected
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "stop_ble_rssi_interval returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_rssi_polling returns ok") {
   BleFfiFixture::set_rssi_interval();
   auto json = BleFfiFixture::stop_rssi_interval();
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "stop_ble_rssi_interval stops interval on provider") {
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_rssi_polling stops interval on provider") {
   BleFfiFixture::set_rssi_interval();
   BleFfiFixture::stop_rssi_interval();
   REQUIRE(!provider->rssi_interval_active);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "stop_ble_rssi_interval returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "stop_ble_gatt_rssi_polling returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   BleFfiFixture::set_rssi_interval();
@@ -352,20 +352,20 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_rssi_interval returns 500 on unexpecte
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "stop_ble_backend returns ok") {
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_backend returns ok") {
     BleFfiFixture::start();
     auto json = BleFfiFixture::stop();
     REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "stop_ble_backend calls stop on backend") {
-    auto backend = get_ble_backend(valid_uuid);
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_backend calls stop on backend") {
+    auto backend = get_ble_gatt_backend(valid_uuid);
     BleFfiFixture::start();
     BleFfiFixture::stop();
     REQUIRE(!backend->is_running());
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleFfiFixture, "stop_ble_gatt_backend returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
   start();
@@ -374,7 +374,7 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_backend returns 500 on unexpected thro
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callback with peripheral name") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected callback with peripheral name") {
   static std::string received_uuid;
   static std::string received_name;
   static on_connected_fn fn = [](const char* uuid, const char* name) {
@@ -383,7 +383,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callba
   };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
-  start_ble_backend(valid_uuid.c_str(), fn, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), fn, &cb, 1);
   ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
   provider->simulate_connected(&peripheral);
 
@@ -391,7 +391,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_backend invokes on_connected callba
   REQUIRE(received_name == "Muse-1234");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "create_ble_backend runs again after stop_ble_backend") {
+TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend runs again after stop_ble_gatt_backend") {
   create_and_parse_valid();
   start();
   stop();
@@ -447,7 +447,7 @@ TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid invokes on_discovered w
   REQUIRE(received_uuid == discovered_uuid);
 }
 
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_backend returns 400 if uuid missing from json") {
-  auto json = nlohmann::json::parse(create_ble_backend("{}"));
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid missing from json") {
+  auto json = nlohmann::json::parse(create_ble_gatt_backend("{}"));
   REQUIRE(json["status"] == 400);
 }
