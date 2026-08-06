@@ -49,3 +49,8 @@ TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start 
   start();
   REQUIRE(provider->listen_requested_for == "179F4A82-A2DF-C241-DB2A-1DF990779106");
 }
+`
+TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start throws when Bluetooth is not powered on") {
+  provider->powered_on = false;
+  REQUIRE_THROWS_WITH(start(), "BleAdvertisementBackend: Bluetooth is not powered on");
+}
