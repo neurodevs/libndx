@@ -14,11 +14,13 @@ void BleAdvertisementBackend::start(ndx::OnDataCallback on_data) {
     throw std::runtime_error("BleAdvertisementBackend: Bluetooth is not powered on");
   }
 
-  provider_->listen_for_advertisements(device_id_, std::move(on_data));
+  provider_->start_advertisement_listen(device_id_, std::move(on_data));
 }
 
 void BleAdvertisementBackend::stop() {
   AcquisitionBackend::stop();
+
+  provider_->stop_advertisement_listen();
 }
 
 }

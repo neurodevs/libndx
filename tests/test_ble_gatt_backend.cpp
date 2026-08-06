@@ -49,7 +49,8 @@ struct FakeBleProvider : ndx::BleProvider {
 
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)>) override {}
 
-  void listen_for_advertisements(const std::string&, ndx::OnDataCallback) override {}
+  void start_advertisement_listen(const std::string&, ndx::OnDataCallback) override {}
+  void stop_advertisement_listen() override {}
 
   
   void disconnect_peripheral(const std::string& uuid) override {

@@ -6,15 +6,19 @@
 struct FakeAdvertisementProvider : ndx::BleProvider {
   bool powered_on = true;
   std::string listen_requested_for;
+  bool stop_listening_called = false;
   ndx::OnDataCallback on_data;
 
   bool is_powered_on() override { return powered_on; }
 
-  void listen_for_advertisements(const std::string& uuid, ndx::OnDataCallback on_data_cb) override {
+  void start_advertisement_listen(const std::string& uuid, ndx::OnDataCallback on_data_cb) override {
     listen_requested_for = uuid;
     on_data = std::move(on_data_cb);
   }
 
+  void stop_advertisement_listen() override {
+    stop_listening_called = true;
+  }
 
   void simulate_advertisement(const ndx::Packet& p) {
     if (on_data) on_data(p);
@@ -49,8 +53,14 @@ TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start 
   start();
   REQUIRE(provider->listen_requested_for == "179F4A82-A2DF-C241-DB2A-1DF990779106");
 }
-`
+
 TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start throws when Bluetooth is not powered on") {
   provider->powered_on = false;
   REQUIRE_THROWS_WITH(start(), "BleAdvertisementBackend: Bluetooth is not powered on");
+}
+
+TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend stop stops listening on provider") {
+  start();
+  backend.stop();
+  REQUIRE(provider->stop_listening_called);
 }
