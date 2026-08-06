@@ -7,6 +7,7 @@
 #include <cstddef>
 
 #include "ndx/acquisition_backend.hpp"
+#include "ndx/ble_advertisement_backend.hpp"
 #include "ndx/ble_gatt_backend.hpp"
 #include "ndx/usb_backend.hpp"
 
@@ -33,6 +34,8 @@ char* start_ble_gatt_rssi_polling(const char* device_uuid, int interval_ms, on_r
 char* stop_ble_gatt_rssi_polling(const char* device_uuid);
 char* stop_ble_gatt_backend(const char* device_uuid);
 
+char* create_ble_advertisement_backend(const char* config_json);
+
 char* create_usb_backend(const char* serial_number);
 char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec));
 char* write_usb_backend(const char* serial_number, const char* value);
@@ -41,6 +44,7 @@ char* stop_usb_backend(const char* serial_number);
 }
 
 using BleGattFactory = std::function<std::shared_ptr<ndx::BleGattBackend>(const std::string&)>;
+using BleAdvertisementFactory = std::function<std::shared_ptr<ndx::BleAdvertisementBackend>(const std::string&)>;
 using BleProviderFactory = std::function<std::unique_ptr<ndx::BleProvider>()>;
 using UsbFactory = std::function<std::shared_ptr<ndx::UsbBackend>(const std::string&)>;
 
@@ -48,8 +52,10 @@ using UsbFactory = std::function<std::shared_ptr<ndx::UsbBackend>(const std::str
 std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& device_uuid);
 std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number);
 void reset_ble_gatt_backends();
+void reset_ble_advertisement_backends();
 void reset_usb_backends();
 void set_ble_gatt_factory(BleGattFactory factory);
+void set_ble_advertisement_factory(BleAdvertisementFactory factory);
 void set_ble_provider_factory(BleProviderFactory factory);
 void set_usb_factory(UsbFactory factory);
 #endif

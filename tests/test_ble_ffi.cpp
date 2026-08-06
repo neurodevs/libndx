@@ -453,3 +453,27 @@ TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid mis
   auto json = nlohmann::json::parse(create_ble_gatt_backend("{}"));
   REQUIRE(json["status"] == 400);
 }
+
+struct BleAdvertisementFfiFixture {
+  AlwaysOnBleProvider* provider = nullptr;
+  std::string valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
+
+  BleAdvertisementFfiFixture() {
+    reset_ble_advertisement_backends();
+    set_ble_advertisement_factory([this](const std::string& uuid) {
+      auto p = std::make_unique<AlwaysOnBleProvider>();
+      provider = p.get();
+      return std::make_shared<ndx::BleAdvertisementBackend>(uuid, std::move(p));
+    });
+  }
+
+  nlohmann::json create_and_parse(std::string uuid) {
+    std::string config_json = "{\"uuid\":\"" + uuid + "\"}";
+    return nlohmann::json::parse(create_ble_advertisement_backend(config_json.c_str()));
+  }
+};
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns ok") {
+  auto json = create_and_parse(valid_uuid);
+  REQUIRE(json["status"] == 200);
+}

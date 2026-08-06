@@ -15,11 +15,16 @@
 #include "ndx/usb_provider.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
+static std::unordered_map<std::string, std::shared_ptr<ndx::BleAdvertisementBackend>> g_ble_advertisement_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
 static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
     return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());
+};
+
+static BleAdvertisementFactory g_ble_advertisement_factory = [](const std::string& device_uuid) {
+    return std::make_shared<ndx::BleAdvertisementBackend>(device_uuid, ndx::create_ble_provider());
 };
 
 static BleProviderFactory g_ble_provider_factory = []() {
@@ -101,6 +106,10 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
+}
+
+extern "C" char* create_ble_advertisement_backend(const char* config_json) {
+    return to_ffi_result({{"status", 200}});
 }
 
 extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
@@ -261,6 +270,14 @@ void reset_ble_gatt_backends() {
     g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
 }
 
+void reset_ble_advertisement_backends() {
+    g_ble_advertisement_backends.clear();
+    g_ble_advertisement_factory = [](const std::string& device_uuid) {
+        return std::make_shared<ndx::BleAdvertisementBackend>(device_uuid, ndx::create_ble_provider());
+    };
+}
+
+
 void reset_usb_backends() {
     g_usb_backends.clear();
     g_usb_factory = [](const std::string& serial_number) {
@@ -270,6 +287,10 @@ void reset_usb_backends() {
 
 void set_ble_gatt_factory(BleGattFactory factory) {
     g_ble_gatt_factory = factory;
+}
+
+void set_ble_advertisement_factory(BleAdvertisementFactory factory) {
+    g_ble_advertisement_factory = std::move(factory);
 }
 
 void set_ble_provider_factory(BleProviderFactory factory) {
