@@ -588,3 +588,13 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend cal
 
   REQUIRE_FALSE(backend->is_running());
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 500 on unexpected throw") {
+  create_and_parse(valid_uuid);
+  start();
+  stop();
+  auto json = stop();
+
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("not running") != std::string::npos);
+}
