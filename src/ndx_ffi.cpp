@@ -231,6 +231,10 @@ extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_dat
     });
 }
 
+extern "C" char* stop_ble_advertisement_backend(const char* device_uuid) {
+    return to_ffi_result({{"status", 200}});
+}
+
 extern "C" char* create_usb_backend(const char* config_json) {
     return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);

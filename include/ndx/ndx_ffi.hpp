@@ -36,6 +36,7 @@ char* stop_ble_gatt_backend(const char* device_uuid);
 
 char* create_ble_advertisement_backend(const char* config_json);
 char* start_ble_advertisement_backend(const char* device_uuid, on_data_fn on_data);
+char* stop_ble_advertisement_backend(const char* device_uuid);
 
 char* create_usb_backend(const char* serial_number);
 char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec));

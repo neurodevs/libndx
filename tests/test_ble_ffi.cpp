@@ -482,6 +482,10 @@ struct BleAdvertisementFfiFixture {
     static on_data_fn fn = [](const uint8_t*, size_t, double) {};
     return nlohmann::json::parse(start_ble_advertisement_backend(valid_uuid.c_str(), fn));
   }
+
+  nlohmann::json stop() {
+    return nlohmann::json::parse(stop_ble_advertisement_backend(valid_uuid.c_str()));
+  }
 };
 
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns ok") {
@@ -566,4 +570,12 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend re
   auto json = start();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("already running") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns ok") {
+  create_and_parse(valid_uuid);
+  start();
+  auto json = stop();
+  
+  REQUIRE(json["status"] == 200);
 }
