@@ -484,3 +484,10 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend c
   REQUIRE(backend != nullptr);
   REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if uuid already registered") {
+  create_and_parse(valid_uuid);
+  auto json = create_and_parse(valid_uuid);
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "uuid already registered");
+}

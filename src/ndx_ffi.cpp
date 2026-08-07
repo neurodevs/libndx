@@ -45,6 +45,10 @@ static bool is_ble_gatt_registered(const std::string& device_uuid) {
     return g_ble_gatt_backends.count(device_uuid) > 0;
 }
 
+static bool is_ble_advertisement_registered(const std::string& device_uuid) {
+    return g_ble_advertisement_backends.count(device_uuid) > 0;
+}
+
 static UsbFactory g_usb_factory = [](const std::string& serial_number) {
     return std::make_shared<ndx::UsbBackend>(serial_number, ndx::create_usb_provider());
 };
@@ -205,6 +209,10 @@ extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
 extern "C" char* create_ble_advertisement_backend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json);
     std::string uuid = j["uuid"].get<std::string>();
+
+    if (is_ble_advertisement_registered(uuid)) {
+        return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
+    }
 
     g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
     return to_ffi_result({{"status", 200}});
