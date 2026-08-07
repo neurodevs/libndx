@@ -589,6 +589,13 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend cal
   REQUIRE_FALSE(backend->is_running());
 }
 
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 400 if backend not found") {
+  auto json = stop();
+
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "backend not found");
+}
+
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 500 on unexpected throw") {
   create_and_parse(valid_uuid);
   start();

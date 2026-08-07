@@ -20,6 +20,8 @@ static char* to_ffi_result(const nlohmann::json& j) {
     return strdup(j.dump().c_str());
 }
 
+static const nlohmann::json BACKEND_NOT_FOUND = {{"status", 400}, {"error", "backend not found"}};
+
 template<typename Fn>
 static char* try_to_run(Fn&& fn) {
     try {

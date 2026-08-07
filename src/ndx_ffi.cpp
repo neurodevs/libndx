@@ -117,7 +117,7 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
 extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         ndx::CharCallbacks cbs;
         for (size_t i = 0; i < num_callbacks; ++i) {
             auto& c = callbacks[i];
@@ -138,7 +138,7 @@ extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn
 extern "C" char* register_ble_gatt_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         ndx::CharCallbacks cbs;
         for (size_t i = 0; i < num_callbacks; ++i) {
             auto& c = callbacks[i];
@@ -154,7 +154,7 @@ extern "C" char* register_ble_gatt_char_callbacks(const char* device_uuid, const
 extern "C" char* write_ble_gatt_char(const char* device_uuid, const char* char_uuid, const char* cmd) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         size_t cmd_len = strlen(cmd);
         std::vector<char> buf(cmd_len + 2);
         buf[0] = (char)(cmd_len + 1);
@@ -168,7 +168,7 @@ extern "C" char* write_ble_gatt_char(const char* device_uuid, const char* char_u
 extern "C" char* start_ble_gatt_rssi_polling(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         backend->set_rssi_interval(interval_ms, [on_rssi](int rssi) { on_rssi(rssi); });
         return to_ffi_result({{"status", 200}});
     });
@@ -177,7 +177,7 @@ extern "C" char* start_ble_gatt_rssi_polling(const char* device_uuid, int interv
 extern "C" char* stop_ble_gatt_rssi_polling(const char* device_uuid) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         backend->stop_rssi_interval();
         return to_ffi_result({{"status", 200}});
     });
@@ -221,7 +221,7 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
 extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_data_fn on_data) {
     return try_to_run([&] {
         auto backend = get_ble_advertisement_backend(device_uuid);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
 
         backend->start([fn = on_data](const ndx::Packet& p) {
             fn(p.data.data(), p.data.size(), p.timestamp_sec);
@@ -234,7 +234,10 @@ extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_dat
 extern "C" char* stop_ble_advertisement_backend(const char* device_uuid) {
     return try_to_run([&] {
         auto backend = get_ble_advertisement_backend(device_uuid);
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
+        
         backend->stop();
+
         return to_ffi_result({{"status", 200}});
     });
 }
@@ -277,7 +280,7 @@ extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(co
 extern "C" char* write_usb_backend(const char* serial_number, const char* value) {
     return try_to_run([&] {
         auto backend = get_usb_backend(serial_number);
-        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         backend->write(reinterpret_cast<const uint8_t*>(value), strlen(value));
         return to_ffi_result({{"status", 200}});
     });
