@@ -155,6 +155,11 @@ TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend sets proper uuid on b
     REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
+TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid missing from json") {
+  auto json = nlohmann::json::parse(create_ble_gatt_backend("{}"));
+  REQUIRE(json["status"] == 400);
+}
+
 TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend returns 400 if uuid is already registered") {
     auto json = create_and_parse_valid();
     REQUIRE(json["status"] == 400);
@@ -242,6 +247,23 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend routes multiple callba
 
   REQUIRE(a_calls == 1);
   REQUIRE(b_calls == 1);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected callback with peripheral name") {
+  static std::string received_uuid;
+  static std::string received_name;
+  static on_connected_fn fn = [](const char* uuid, const char* name) {
+    received_uuid = uuid ? uuid : "";
+    received_name = name ? name : "";
+  };
+  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
+
+  start_ble_gatt_backend(valid_uuid.c_str(), fn, &cb, 1);
+  ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
+  provider->simulate_connected(&peripheral);
+
+  REQUIRE(received_uuid == "test-uuid");
+  REQUIRE(received_name == "Muse-1234");
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "start_ble_gatt_backend returns 500 on unexpected throw") {
@@ -382,23 +404,6 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_gatt_backend returns 500 on unexpected
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected callback with peripheral name") {
-  static std::string received_uuid;
-  static std::string received_name;
-  static on_connected_fn fn = [](const char* uuid, const char* name) {
-    received_uuid = uuid ? uuid : "";
-    received_name = name ? name : "";
-  };
-  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
-
-  start_ble_gatt_backend(valid_uuid.c_str(), fn, &cb, 1);
-  ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
-  provider->simulate_connected(&peripheral);
-
-  REQUIRE(received_uuid == "test-uuid");
-  REQUIRE(received_name == "Muse-1234");
-}
-
 TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend runs again after stop_ble_gatt_backend") {
   create_and_parse_valid();
   start();
@@ -453,11 +458,6 @@ TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid invokes on_discovered w
   simulate_discovery();
 
   REQUIRE(received_uuid == discovered_uuid);
-}
-
-TEST_CASE_METHOD(BleFfiFixture, "create_ble_gatt_backend returns 400 if uuid missing from json") {
-  auto json = nlohmann::json::parse(create_ble_gatt_backend("{}"));
-  REQUIRE(json["status"] == 400);
 }
 
 struct BleAdvertisementFfiFixture {
@@ -552,4 +552,10 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend re
   create_and_parse(valid_uuid);
   auto json = start();
   REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns 400 if backend not found") {
+  auto json = start();
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "backend not found");
 }
