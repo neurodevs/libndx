@@ -20,6 +20,15 @@ static char* to_ffi_result(const nlohmann::json& j) {
     return strdup(j.dump().c_str());
 }
 
+template<typename Fn>
+static char* try_to_run(Fn&& fn) {
+    try {
+        return fn();
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
+    }
+}
+
 template<typename GetFn>
 static char* stop_backend(const char* device_id, GetFn get_backend) {
     auto backend = get_backend(device_id);

@@ -63,7 +63,7 @@ static bool is_usb_registered(const std::string& serial_number) {
 }
 
 extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered) {
-    try {
+    return try_to_run([&] {
         std::string prefix = name_prefix;
         auto provider = g_ble_provider_factory();
         auto* prov = provider.get();
@@ -77,13 +77,11 @@ extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_
             if (on_discovered) on_discovered(uuid.c_str());
         });
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* create_ble_gatt_backend(const char* config_json) {
-    try {
+    return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
         if (j.is_discarded()) {
@@ -113,13 +111,11 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
             g_ble_gatt_backends[uuid] = g_ble_gatt_factory(uuid);
         }
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
-    try {
+    return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         ndx::CharCallbacks cbs;
@@ -136,13 +132,11 @@ extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn
             : nullptr;
         backend->start(std::move(cbs), std::move(cb));
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* register_ble_gatt_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks) {
-    try {
+    return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         ndx::CharCallbacks cbs;
@@ -154,13 +148,11 @@ extern "C" char* register_ble_gatt_char_callbacks(const char* device_uuid, const
         }
         backend->add_char_callbacks(std::move(cbs));
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* write_ble_gatt_char(const char* device_uuid, const char* char_uuid, const char* cmd) {
-    try {
+    return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         size_t cmd_len = strlen(cmd);
@@ -170,45 +162,37 @@ extern "C" char* write_ble_gatt_char(const char* device_uuid, const char* char_u
         buf[1 + cmd_len] = '\n';
         backend->write_characteristic(char_uuid, reinterpret_cast<const uint8_t*>(buf.data()), buf.size());
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* start_ble_gatt_rssi_polling(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi) {
-    try {
+    return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         backend->set_rssi_interval(interval_ms, [on_rssi](int rssi) { on_rssi(rssi); });
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* stop_ble_gatt_rssi_polling(const char* device_uuid) {
-    try {
+    return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         backend->stop_rssi_interval();
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
-    try {
+    return try_to_run([&] {
         auto result = stop_backend(device_uuid, get_ble_gatt_backend);
         g_ble_gatt_backends.erase(device_uuid);
         return result;
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* create_ble_advertisement_backend(const char* config_json) {
-    try {
+    return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
         if (j.is_discarded()) {
@@ -231,24 +215,24 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
 
         g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_data_fn on_data) {
-    auto backend = get_ble_advertisement_backend(device_uuid);
-    if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
+    return try_to_run([&] {
+        auto backend = get_ble_advertisement_backend(device_uuid);
+        if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
 
-    backend->start([fn = on_data](const ndx::Packet& p) {
-        fn(p.data.data(), p.data.size(), p.timestamp_sec);
+        backend->start([fn = on_data](const ndx::Packet& p) {
+            fn(p.data.data(), p.data.size(), p.timestamp_sec);
+        });
+
+        return to_ffi_result({{"status", 200}});
     });
-    
-    return to_ffi_result({{"status", 200}});
 }
 
 extern "C" char* create_usb_backend(const char* config_json) {
-    try {
+    return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
         if (j.is_discarded()) {
@@ -267,13 +251,11 @@ extern "C" char* create_usb_backend(const char* config_json) {
 
         g_usb_backends[serial_number] = g_usb_factory(serial_number);
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec)) {
-    try {
+    return try_to_run([&] {
         auto backend = get_usb_backend(serial_number);
         if (backend) {
             backend->start([fn = on_data](const ndx::Packet& p) {
@@ -281,28 +263,22 @@ extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(co
             });
         }
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* write_usb_backend(const char* serial_number, const char* value) {
-    try {
+    return try_to_run([&] {
         auto backend = get_usb_backend(serial_number);
         if (!backend) return to_ffi_result({{"status", 400}, {"error", "backend not found"}});
         backend->write(reinterpret_cast<const uint8_t*>(value), strlen(value));
         return to_ffi_result({{"status", 200}});
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 extern "C" char* stop_usb_backend(const char* serial_number) {
-    try {
+    return try_to_run([&] {
         return stop_backend(serial_number, get_usb_backend);
-    } catch (const std::exception& e) {
-        return to_ffi_result({{"status", 500}, {"error", e.what()}});
-    }
+    });
 }
 
 // For tests only

@@ -559,3 +559,11 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend re
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns 500 on unexpected throw") {
+  create_and_parse(valid_uuid);
+  start();
+  auto json = start();
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("already running") != std::string::npos);
+}
