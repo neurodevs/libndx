@@ -105,6 +105,7 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
         }
 
         auto sit = g_ble_scanners.find(uuid);
+        
         if (sit != g_ble_scanners.end()) {
             g_ble_gatt_backends[uuid] = std::make_shared<ndx::BleGattBackend>(uuid, std::move(sit->second));
             g_ble_scanners.erase(sit);
@@ -207,7 +208,12 @@ extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
 }
 
 extern "C" char* create_ble_advertisement_backend(const char* config_json) {
-    auto j = nlohmann::json::parse(config_json);
+    auto j = nlohmann::json::parse(config_json, nullptr, false);
+
+    if (j.is_discarded()) {
+        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+    }
+
     std::string uuid = j["uuid"].get<std::string>();
 
     if (!is_valid_uuid(uuid)) {
