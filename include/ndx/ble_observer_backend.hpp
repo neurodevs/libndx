@@ -8,7 +8,7 @@ namespace ndx {
 class BleObserverBackend : public AcquisitionBackend {
 public:
   explicit BleObserverBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
-  virtual void start(ndx::OnDataCallback on_data);
+  virtual void start(ndx::OnDataCallback on_advertisement);
   void stop() override;
   std::string name() const override { return "BleObserverBackend"; }
 
