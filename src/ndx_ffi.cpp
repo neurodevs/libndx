@@ -237,6 +237,7 @@ extern "C" char* stop_ble_advertisement_backend(const char* device_uuid) {
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         
         backend->stop();
+        g_ble_advertisement_backends.erase(device_uuid);
 
         return to_ffi_result({{"status", 200}});
     });

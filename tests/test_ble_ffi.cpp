@@ -486,6 +486,17 @@ struct BleAdvertisementFfiFixture {
   nlohmann::json stop() {
     return nlohmann::json::parse(stop_ble_advertisement_backend(valid_uuid.c_str()));
   }
+
+  void set_throwing_factory() {
+    set_ble_advertisement_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleAdvertisementBackend> {
+      struct ThrowingBleAdvertisementBackend : ndx::BleAdvertisementBackend {
+        using ndx::BleAdvertisementBackend::BleAdvertisementBackend;
+        void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
+        void stop() override { throw std::runtime_error("internal server error"); }
+      };
+      return std::make_shared<ThrowingBleAdvertisementBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
+    });
+  }
 };
 
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns ok") {
@@ -597,11 +608,19 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend ret
 }
 
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 500 on unexpected throw") {
+  set_throwing_factory();
   create_and_parse(valid_uuid);
-  start();
-  stop();
   auto json = stop();
 
   REQUIRE(json["status"] == 500);
-  REQUIRE(json["error"].get<std::string>().find("not running") != std::string::npos);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend runs again after stop") {
+  create_and_parse(valid_uuid);
+  start();
+  stop();
+
+  auto json = create_and_parse(valid_uuid);
+  REQUIRE(json["status"] == 200);
 }
