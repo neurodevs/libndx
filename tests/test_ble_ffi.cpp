@@ -491,3 +491,9 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "uuid already registered");
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if uuid not size 36") {
+  auto json = create_and_parse("not-a-valid-uuid");
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "invalid uuid");
+}

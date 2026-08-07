@@ -210,6 +210,10 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
     auto j = nlohmann::json::parse(config_json);
     std::string uuid = j["uuid"].get<std::string>();
 
+    if (!is_valid_uuid(uuid)) {
+        return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
+    }
+
     if (is_ble_advertisement_registered(uuid)) {
         return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
     }
