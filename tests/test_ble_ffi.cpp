@@ -17,8 +17,14 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void add_char_callbacks(ndx::CharCallbacks cbs) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
-  void start_advertisement_listen(const std::string&, ndx::OnDataCallback) override {}
+  ndx::OnDataCallback on_advertisement;
+  void start_advertisement_listen(const std::string&, ndx::OnDataCallback cb) override {
+    on_advertisement = std::move(cb);
+  }
   void stop_advertisement_listen() override {}
+  void simulate_advertisement(const ndx::Packet& p) {
+    if (on_advertisement) on_advertisement(p);
+  }
   bool discover_ble_uuid_called = false;
   std::function<void(const std::string&)> discover_ble_uuid_callback;
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)> cb) override {
@@ -522,6 +528,24 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   auto json = create_and_parse(valid_uuid);
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend calls start on backend") {
+  static std::vector<uint8_t> received_data;
+  static double received_timestamp_sec = 0.0;
+
+  static on_data_fn fn = [](const uint8_t* data, size_t len, double timestamp_sec) {
+    received_data.assign(data, data + len);
+    received_timestamp_sec = timestamp_sec;
+  };
+
+  create_and_parse(valid_uuid);
+  start_ble_advertisement_backend(valid_uuid.c_str(), fn);
+  
+  provider->simulate_advertisement({{42, 43}, 1.0});
+
+  REQUIRE(received_data == std::vector<uint8_t>{42, 43});
+  REQUIRE(received_timestamp_sec == Catch::Approx(1.0));
 }
 
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns ok") {

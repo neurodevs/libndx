@@ -237,6 +237,12 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
 }
 
 extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_data_fn on_data) {
+    auto backend = get_ble_advertisement_backend(device_uuid);
+
+    backend->start([fn = on_data](const ndx::Packet& p) {
+        fn(p.data.data(), p.data.size(), p.timestamp_sec);
+    });
+    
     return to_ffi_result({{"status", 200}});
 }
 
