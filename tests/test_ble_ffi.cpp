@@ -503,3 +503,9 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "malformed JSON");
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if missing uuid") {
+  auto json = nlohmann::json::parse(create_ble_advertisement_backend("{}"));
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "missing uuid");
+}

@@ -214,6 +214,10 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
         return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
     }
 
+    if (!j.contains("uuid") || !j["uuid"].is_string()) {
+        return to_ffi_result({{"status", 400}, {"error", "missing uuid"}});
+    }
+
     std::string uuid = j["uuid"].get<std::string>();
 
     if (!is_valid_uuid(uuid)) {
