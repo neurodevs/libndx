@@ -509,3 +509,13 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "missing uuid");
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 500 on unexpected throw") {
+  set_ble_advertisement_factory([](const std::string&) -> std::shared_ptr<ndx::BleAdvertisementBackend> {
+    throw std::runtime_error("internal server error");
+  });
+  auto json = create_and_parse(valid_uuid);
+  REQUIRE(json["status"] == 500);
+  REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+

@@ -208,28 +208,32 @@ extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
 }
 
 extern "C" char* create_ble_advertisement_backend(const char* config_json) {
-    auto j = nlohmann::json::parse(config_json, nullptr, false);
+    try {
+        auto j = nlohmann::json::parse(config_json, nullptr, false);
 
-    if (j.is_discarded()) {
-        return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        if (j.is_discarded()) {
+            return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        }
+
+        if (!j.contains("uuid") || !j["uuid"].is_string()) {
+            return to_ffi_result({{"status", 400}, {"error", "missing uuid"}});
+        }
+
+        std::string uuid = j["uuid"].get<std::string>();
+
+        if (!is_valid_uuid(uuid)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
+        }
+
+        if (is_ble_advertisement_registered(uuid)) {
+            return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
+        }
+
+        g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
+        return to_ffi_result({{"status", 200}});
+    } catch (const std::exception& e) {
+        return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
-
-    if (!j.contains("uuid") || !j["uuid"].is_string()) {
-        return to_ffi_result({{"status", 400}, {"error", "missing uuid"}});
-    }
-
-    std::string uuid = j["uuid"].get<std::string>();
-
-    if (!is_valid_uuid(uuid)) {
-        return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
-    }
-
-    if (is_ble_advertisement_registered(uuid)) {
-        return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
-    }
-
-    g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
-    return to_ffi_result({{"status", 200}});
 }
 
 extern "C" char* create_usb_backend(const char* config_json) {
