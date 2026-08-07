@@ -98,8 +98,8 @@ if(APPLE)
     "-framework Foundation"
   )
 
-  add_executable(run_govee_advertisement tools/run_govee_advertisement.mm)
-  target_link_libraries(run_govee_advertisement PRIVATE ndx)
+  add_executable(run_govee_observer tools/run_govee_observer.mm)
+  target_link_libraries(run_govee_observer PRIVATE ndx)
 
   add_executable(scan_ble tools/scan_all_ble.mm)
   target_link_libraries(scan_ble PRIVATE

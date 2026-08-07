@@ -50,7 +50,7 @@ static void after(double seconds, dispatch_block_t block) {
                  dispatch_get_main_queue(), block);
 }
 
-// usage: run_govee_advertisement [seconds]   (0 = run until interrupted, default 30)
+// usage: run_govee_observer [seconds]   (0 = run until interrupted, default 30)
 int main(int argc, char** argv) {
   double duration_sec = argc > 1 ? atof(argv[1]) : 30.0;
 

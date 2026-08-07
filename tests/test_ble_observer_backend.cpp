@@ -3,7 +3,7 @@
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_observer_backend.hpp"
 
-struct FakeAdvertisementProvider : ndx::BleProvider {
+struct FakeObserverProvider : ndx::BleProvider {
   bool powered_on = true;
   std::string listen_requested_for;
   bool stop_listening_called = false;
@@ -36,11 +36,11 @@ struct FakeAdvertisementProvider : ndx::BleProvider {
 };
 
 struct BleObserverBackendFixture {
-  FakeAdvertisementProvider* provider;
+  FakeObserverProvider* provider;
   ndx::BleObserverBackend backend;
 
   BleObserverBackendFixture()
-    : provider(new FakeAdvertisementProvider()),
+    : provider(new FakeObserverProvider()),
       backend("179F4A82-A2DF-C241-DB2A-1DF990779106",
               std::unique_ptr<ndx::BleProvider>(provider)) {}
 
