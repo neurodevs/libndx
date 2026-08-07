@@ -579,3 +579,12 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend ret
   
   REQUIRE(json["status"] == 200);
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend calls stop on backend") {
+  create_and_parse(valid_uuid);
+  auto backend = get_ble_advertisement_backend(valid_uuid);
+  start();
+  stop();
+
+  REQUIRE_FALSE(backend->is_running());
+}

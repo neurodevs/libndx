@@ -232,6 +232,8 @@ extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_dat
 }
 
 extern "C" char* stop_ble_advertisement_backend(const char* device_uuid) {
+    auto backend = get_ble_advertisement_backend(device_uuid);
+    backend->stop();
     return to_ffi_result({{"status", 200}});
 }
 
