@@ -1,11 +1,11 @@
-#include "ndx/ble_advertisement_backend.hpp"
+#include "ndx/ble_observer_backend.hpp"
 #include "ndx/ble_provider.hpp"
 #import <Foundation/Foundation.h>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
 
-// Same device as tools/run_govee.mm, but driven through BleAdvertisementBackend
+// Same device as tools/run_govee.mm, but driven through BleObserverBackend
 // instead of talking to CoreBluetooth directly.
 static const char* GOVEE_DEVICE_UUID = "179F4A82-A2DF-C241-DB2A-1DF990779106";
 
@@ -54,7 +54,7 @@ static void after(double seconds, dispatch_block_t block) {
 int main(int argc, char** argv) {
   double duration_sec = argc > 1 ? atof(argv[1]) : 30.0;
 
-  static ndx::BleAdvertisementBackend backend(GOVEE_DEVICE_UUID, ndx::create_ble_provider());
+  static ndx::BleObserverBackend backend(GOVEE_DEVICE_UUID, ndx::create_ble_provider());
 
   printf("listening for %s advertisements...\n", GOVEE_DEVICE_UUID);
   try {

@@ -460,84 +460,84 @@ TEST_CASE_METHOD(AutoDiscoverFixture, "discover_ble_uuid invokes on_discovered w
   REQUIRE(received_uuid == discovered_uuid);
 }
 
-struct BleAdvertisementFfiFixture {
+struct BleObserverFfiFixture {
   AlwaysOnBleProvider* provider = nullptr;
   std::string valid_uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
 
-  BleAdvertisementFfiFixture() {
-    reset_ble_advertisement_backends();
-    set_ble_advertisement_factory([this](const std::string& uuid) {
+  BleObserverFfiFixture() {
+    reset_ble_observer_backends();
+    set_ble_observer_factory([this](const std::string& uuid) {
       auto p = std::make_unique<AlwaysOnBleProvider>();
       provider = p.get();
-      return std::make_shared<ndx::BleAdvertisementBackend>(uuid, std::move(p));
+      return std::make_shared<ndx::BleObserverBackend>(uuid, std::move(p));
     });
   }
 
   nlohmann::json create_and_parse(std::string uuid) {
     std::string config_json = "{\"uuid\":\"" + uuid + "\"}";
-    return nlohmann::json::parse(create_ble_advertisement_backend(config_json.c_str()));
+    return nlohmann::json::parse(create_ble_observer_backend(config_json.c_str()));
   }
 
   nlohmann::json start() {
     static on_data_fn fn = [](const uint8_t*, size_t, double) {};
-    return nlohmann::json::parse(start_ble_advertisement_backend(valid_uuid.c_str(), fn));
+    return nlohmann::json::parse(start_ble_observer_backend(valid_uuid.c_str(), fn));
   }
 
   nlohmann::json stop() {
-    return nlohmann::json::parse(stop_ble_advertisement_backend(valid_uuid.c_str()));
+    return nlohmann::json::parse(stop_ble_observer_backend(valid_uuid.c_str()));
   }
 
   void set_throwing_factory() {
-    set_ble_advertisement_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleAdvertisementBackend> {
-      struct ThrowingBleAdvertisementBackend : ndx::BleAdvertisementBackend {
-        using ndx::BleAdvertisementBackend::BleAdvertisementBackend;
+    set_ble_observer_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleObserverBackend> {
+      struct ThrowingBleObserverBackend : ndx::BleObserverBackend {
+        using ndx::BleObserverBackend::BleObserverBackend;
         void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
       };
-      return std::make_shared<ThrowingBleAdvertisementBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
+      return std::make_shared<ThrowingBleObserverBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
   }
 };
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns ok") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns ok") {
   auto json = create_and_parse(valid_uuid);
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend constructs backend instance") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend constructs backend instance") {
   create_and_parse(valid_uuid);
-  auto backend = get_ble_advertisement_backend(valid_uuid);
+  auto backend = get_ble_observer_backend(valid_uuid);
   REQUIRE(backend != nullptr);
   REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if uuid already registered") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 400 if uuid already registered") {
   create_and_parse(valid_uuid);
   auto json = create_and_parse(valid_uuid);
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "uuid already registered");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if uuid not size 36") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 400 if uuid not size 36") {
   auto json = create_and_parse("not-a-valid-uuid");
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "invalid uuid");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if malformed JSON") {
-  auto json = nlohmann::json::parse(create_ble_advertisement_backend("{"));
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 400 if malformed JSON") {
+  auto json = nlohmann::json::parse(create_ble_observer_backend("{"));
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "malformed JSON");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 400 if missing uuid") {
-  auto json = nlohmann::json::parse(create_ble_advertisement_backend("{}"));
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 400 if missing uuid") {
+  auto json = nlohmann::json::parse(create_ble_observer_backend("{}"));
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "missing uuid");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns 500 on unexpected throw") {
-  set_ble_advertisement_factory([](const std::string&) -> std::shared_ptr<ndx::BleAdvertisementBackend> {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 500 on unexpected throw") {
+  set_ble_observer_factory([](const std::string&) -> std::shared_ptr<ndx::BleObserverBackend> {
     throw std::runtime_error("internal server error");
   });
   auto json = create_and_parse(valid_uuid);
@@ -545,7 +545,7 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend calls start on backend") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend calls start on backend") {
   static std::vector<uint8_t> received_data;
   static double received_timestamp_sec = 0.0;
 
@@ -555,7 +555,7 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend ca
   };
 
   create_and_parse(valid_uuid);
-  start_ble_advertisement_backend(valid_uuid.c_str(), fn);
+  start_ble_observer_backend(valid_uuid.c_str(), fn);
   
   provider->simulate_advertisement({{42, 43}, 1.0});
 
@@ -563,19 +563,19 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend ca
   REQUIRE(received_timestamp_sec == Catch::Approx(1.0));
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns ok") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend returns ok") {
   create_and_parse(valid_uuid);
   auto json = start();
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns 400 if backend not found") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend returns 400 if backend not found") {
   auto json = start();
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend returns 500 on unexpected throw") {
   create_and_parse(valid_uuid);
   start();
   auto json = start();
@@ -583,7 +583,7 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend re
   REQUIRE(json["error"].get<std::string>().find("already running") != std::string::npos);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns ok") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "stop_ble_observer_backend returns ok") {
   create_and_parse(valid_uuid);
   start();
   auto json = stop();
@@ -591,23 +591,23 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend ret
   REQUIRE(json["status"] == 200);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend calls stop on backend") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "stop_ble_observer_backend calls stop on backend") {
   create_and_parse(valid_uuid);
-  auto backend = get_ble_advertisement_backend(valid_uuid);
+  auto backend = get_ble_observer_backend(valid_uuid);
   start();
   stop();
 
   REQUIRE_FALSE(backend->is_running());
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 400 if backend not found") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "stop_ble_observer_backend returns 400 if backend not found") {
   auto json = stop();
 
   REQUIRE(json["status"] == 400);
   REQUIRE(json["error"] == "backend not found");
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend returns 500 on unexpected throw") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "stop_ble_observer_backend returns 500 on unexpected throw") {
   set_throwing_factory();
   create_and_parse(valid_uuid);
   auto json = stop();
@@ -616,7 +616,7 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "stop_ble_advertisement_backend ret
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend runs again after stop") {
+TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend runs again after stop") {
   create_and_parse(valid_uuid);
   start();
   stop();

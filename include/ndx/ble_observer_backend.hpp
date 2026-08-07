@@ -5,12 +5,12 @@
 
 namespace ndx {
 
-class BleAdvertisementBackend : public AcquisitionBackend {
+class BleObserverBackend : public AcquisitionBackend {
 public:
-  explicit BleAdvertisementBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
+  explicit BleObserverBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider);
   virtual void start(ndx::OnDataCallback on_data);
   void stop() override;
-  std::string name() const override { return "BleAdvertisementBackend"; }
+  std::string name() const override { return "BleObserverBackend"; }
 
 private:
   std::unique_ptr<BleProvider> provider_;

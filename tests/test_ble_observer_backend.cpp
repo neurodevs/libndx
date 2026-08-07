@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
 #include "ndx/acquisition_backend.hpp"
-#include "ndx/ble_advertisement_backend.hpp"
+#include "ndx/ble_observer_backend.hpp"
 
 struct FakeAdvertisementProvider : ndx::BleProvider {
   bool powered_on = true;
@@ -35,11 +35,11 @@ struct FakeAdvertisementProvider : ndx::BleProvider {
   void disconnect_peripheral(const std::string&) override {}
 };
 
-struct BleAdvertisementBackendFixture {
+struct BleObserverBackendFixture {
   FakeAdvertisementProvider* provider;
-  ndx::BleAdvertisementBackend backend;
+  ndx::BleObserverBackend backend;
 
-  BleAdvertisementBackendFixture()
+  BleObserverBackendFixture()
     : provider(new FakeAdvertisementProvider()),
       backend("179F4A82-A2DF-C241-DB2A-1DF990779106",
               std::unique_ptr<ndx::BleProvider>(provider)) {}
@@ -49,17 +49,17 @@ struct BleAdvertisementBackendFixture {
   }
 };
 
-TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start listens for advertisements with device_id") {
+TEST_CASE_METHOD(BleObserverBackendFixture, "BleObserverBackend start listens for advertisements with device_id") {
   start();
   REQUIRE(provider->listen_requested_for == "179F4A82-A2DF-C241-DB2A-1DF990779106");
 }
 
-TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend start throws when Bluetooth is not powered on") {
+TEST_CASE_METHOD(BleObserverBackendFixture, "BleObserverBackend start throws when Bluetooth is not powered on") {
   provider->powered_on = false;
-  REQUIRE_THROWS_WITH(start(), "BleAdvertisementBackend: Bluetooth is not powered on");
+  REQUIRE_THROWS_WITH(start(), "BleObserverBackend: Bluetooth is not powered on");
 }
 
-TEST_CASE_METHOD(BleAdvertisementBackendFixture, "BleAdvertisementBackend stop stops listening on provider") {
+TEST_CASE_METHOD(BleObserverBackendFixture, "BleObserverBackend stop stops listening on provider") {
   start();
   backend.stop();
   REQUIRE(provider->stop_listening_called);

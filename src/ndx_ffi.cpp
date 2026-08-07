@@ -15,7 +15,7 @@
 #include "ndx/usb_provider.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
-static std::unordered_map<std::string, std::shared_ptr<ndx::BleAdvertisementBackend>> g_ble_advertisement_backends;
+static std::unordered_map<std::string, std::shared_ptr<ndx::BleObserverBackend>> g_ble_observer_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
@@ -23,8 +23,8 @@ static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
     return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());
 };
 
-static BleAdvertisementFactory g_ble_advertisement_factory = [](const std::string& device_uuid) {
-    return std::make_shared<ndx::BleAdvertisementBackend>(device_uuid, ndx::create_ble_provider());
+static BleObserverFactory g_ble_observer_factory = [](const std::string& device_uuid) {
+    return std::make_shared<ndx::BleObserverBackend>(device_uuid, ndx::create_ble_provider());
 };
 
 static BleProviderFactory g_ble_provider_factory = []() {
@@ -36,17 +36,17 @@ std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& dev
     return it != g_ble_gatt_backends.end() ? it->second : nullptr;
 }
 
-std::shared_ptr<ndx::BleAdvertisementBackend> get_ble_advertisement_backend(const std::string& device_uuid) {
-    auto it = g_ble_advertisement_backends.find(device_uuid);
-    return it != g_ble_advertisement_backends.end() ? it->second : nullptr;
+std::shared_ptr<ndx::BleObserverBackend> get_ble_observer_backend(const std::string& device_uuid) {
+    auto it = g_ble_observer_backends.find(device_uuid);
+    return it != g_ble_observer_backends.end() ? it->second : nullptr;
 }
 
 static bool is_ble_gatt_registered(const std::string& device_uuid) {
     return g_ble_gatt_backends.count(device_uuid) > 0;
 }
 
-static bool is_ble_advertisement_registered(const std::string& device_uuid) {
-    return g_ble_advertisement_backends.count(device_uuid) > 0;
+static bool is_ble_observer_registered(const std::string& device_uuid) {
+    return g_ble_observer_backends.count(device_uuid) > 0;
 }
 
 static UsbFactory g_usb_factory = [](const std::string& serial_number) {
@@ -191,7 +191,7 @@ extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
     });
 }
 
-extern "C" char* create_ble_advertisement_backend(const char* config_json) {
+extern "C" char* create_ble_observer_backend(const char* config_json) {
     return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
 
@@ -209,18 +209,18 @@ extern "C" char* create_ble_advertisement_backend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "invalid uuid"}});
         }
 
-        if (is_ble_advertisement_registered(uuid)) {
+        if (is_ble_observer_registered(uuid)) {
             return to_ffi_result({{"status", 400}, {"error", "uuid already registered"}});
         }
 
-        g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
+        g_ble_observer_backends[uuid] = g_ble_observer_factory(uuid);
         return to_ffi_result({{"status", 200}});
     });
 }
 
-extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_data_fn on_data) {
+extern "C" char* start_ble_observer_backend(const char* device_uuid, on_data_fn on_data) {
     return try_to_run([&] {
-        auto backend = get_ble_advertisement_backend(device_uuid);
+        auto backend = get_ble_observer_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
 
         backend->start([fn = on_data](const ndx::Packet& p) {
@@ -231,13 +231,13 @@ extern "C" char* start_ble_advertisement_backend(const char* device_uuid, on_dat
     });
 }
 
-extern "C" char* stop_ble_advertisement_backend(const char* device_uuid) {
+extern "C" char* stop_ble_observer_backend(const char* device_uuid) {
     return try_to_run([&] {
-        auto backend = get_ble_advertisement_backend(device_uuid);
+        auto backend = get_ble_observer_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
         
         backend->stop();
-        g_ble_advertisement_backends.erase(device_uuid);
+        g_ble_observer_backends.erase(device_uuid);
 
         return to_ffi_result({{"status", 200}});
     });
@@ -304,10 +304,10 @@ void reset_ble_gatt_backends() {
     g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
 }
 
-void reset_ble_advertisement_backends() {
-    g_ble_advertisement_backends.clear();
-    g_ble_advertisement_factory = [](const std::string& device_uuid) {
-        return std::make_shared<ndx::BleAdvertisementBackend>(device_uuid, ndx::create_ble_provider());
+void reset_ble_observer_backends() {
+    g_ble_observer_backends.clear();
+    g_ble_observer_factory = [](const std::string& device_uuid) {
+        return std::make_shared<ndx::BleObserverBackend>(device_uuid, ndx::create_ble_provider());
     };
 }
 
@@ -323,8 +323,8 @@ void set_ble_gatt_factory(BleGattFactory factory) {
     g_ble_gatt_factory = factory;
 }
 
-void set_ble_advertisement_factory(BleAdvertisementFactory factory) {
-    g_ble_advertisement_factory = std::move(factory);
+void set_ble_observer_factory(BleObserverFactory factory) {
+    g_ble_observer_factory = std::move(factory);
 }
 
 void set_ble_provider_factory(BleProviderFactory factory) {
