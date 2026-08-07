@@ -471,6 +471,11 @@ struct BleAdvertisementFfiFixture {
     std::string config_json = "{\"uuid\":\"" + uuid + "\"}";
     return nlohmann::json::parse(create_ble_advertisement_backend(config_json.c_str()));
   }
+
+  nlohmann::json start() {
+    static on_data_fn fn = [](const uint8_t*, size_t, double) {};
+    return nlohmann::json::parse(start_ble_advertisement_backend(valid_uuid.c_str(), fn));
+  }
 };
 
 TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend returns ok") {
@@ -519,3 +524,8 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "start_ble_advertisement_backend returns ok") {
+  create_and_parse(valid_uuid);
+  auto json = start();
+  REQUIRE(json["status"] == 200);
+}
