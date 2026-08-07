@@ -477,3 +477,10 @@ TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend r
   auto json = create_and_parse(valid_uuid);
   REQUIRE(json["status"] == 200);
 }
+
+TEST_CASE_METHOD(BleAdvertisementFfiFixture, "create_ble_advertisement_backend constructs backend instance") {
+  create_and_parse(valid_uuid);
+  auto backend = get_ble_advertisement_backend(valid_uuid);
+  REQUIRE(backend != nullptr);
+  REQUIRE(backend->device_id() == "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
+}

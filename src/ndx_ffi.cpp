@@ -36,6 +36,11 @@ std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& dev
     return it != g_ble_gatt_backends.end() ? it->second : nullptr;
 }
 
+std::shared_ptr<ndx::BleAdvertisementBackend> get_ble_advertisement_backend(const std::string& device_uuid) {
+    auto it = g_ble_advertisement_backends.find(device_uuid);
+    return it != g_ble_advertisement_backends.end() ? it->second : nullptr;
+}
+
 static bool is_ble_gatt_registered(const std::string& device_uuid) {
     return g_ble_gatt_backends.count(device_uuid) > 0;
 }
@@ -106,10 +111,6 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
-}
-
-extern "C" char* create_ble_advertisement_backend(const char* config_json) {
-    return to_ffi_result({{"status", 200}});
 }
 
 extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
@@ -199,6 +200,14 @@ extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
     } catch (const std::exception& e) {
         return to_ffi_result({{"status", 500}, {"error", e.what()}});
     }
+}
+
+extern "C" char* create_ble_advertisement_backend(const char* config_json) {
+    auto j = nlohmann::json::parse(config_json);
+    std::string uuid = j["uuid"].get<std::string>();
+
+    g_ble_advertisement_backends[uuid] = g_ble_advertisement_factory(uuid);
+    return to_ffi_result({{"status", 200}});
 }
 
 extern "C" char* create_usb_backend(const char* config_json) {

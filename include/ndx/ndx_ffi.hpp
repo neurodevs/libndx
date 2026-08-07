@@ -50,6 +50,7 @@ using UsbFactory = std::function<std::shared_ptr<ndx::UsbBackend>(const std::str
 
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& device_uuid);
+std::shared_ptr<ndx::BleAdvertisementBackend> get_ble_advertisement_backend(const std::string& device_uuid);
 std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number);
 void reset_ble_gatt_backends();
 void reset_ble_advertisement_backends();
