@@ -11,7 +11,6 @@ static NSString* const DEVICE_ID = @"179F4A82-A2DF-C241-DB2A-1DF990779106";
 @property (nonatomic, assign) double  tempC;
 @property (nonatomic, assign) double  humidity;
 @property (nonatomic, assign) int     battery;
-@property (nonatomic, assign) BOOL    hasData;
 @end
 
 @implementation GoveeDelegate
@@ -49,19 +48,14 @@ static NSString* const DEVICE_ID = @"179F4A82-A2DF-C241-DB2A-1DF990779106";
   double newHumidity = ((uint16_t)d[5] | ((uint16_t)d[6] << 8)) / 100.0;
   int    newBattery  = d[7];
 
-  if (self.hasData &&
-      newTemp     == self.tempC &&
-      newHumidity == self.humidity &&
-      newBattery  == self.battery) return;
-
   self.tempC    = newTemp;
   self.humidity = newHumidity;
   self.battery  = newBattery;
-  self.hasData  = YES;
 
   double tempF = self.tempC * 9.0 / 5.0 + 32.0;
   printf("temp: %.2f°C / %.2f°F   humidity: %.1f%%   battery: %d%%\n",
          self.tempC, tempF, self.humidity, self.battery);
+  fflush(stdout);
 }
 
 @end
