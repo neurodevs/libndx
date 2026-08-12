@@ -54,7 +54,7 @@ public:
     });
   }
 
-  void start_advertisement_listen(const std::string& uuid, ndx::OnDataCallback on_advertisement_data) override {
+  void start_advertisement_listen(const std::string& uuid, ndx::OnAdvertisementCallback on_advertisement_data) override {
     advertisement_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
     on_advertisement_data_ = on_advertisement_data;
     NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
@@ -67,18 +67,47 @@ public:
     on_advertisement_data_ = nullptr;
   }
 
-  void onDiscoveredAdvertisement(CBPeripheral* peripheral, NSDictionary* advertisementData) {
+  void onDiscoveredAdvertisement(CBPeripheral* peripheral, NSDictionary* advertisementData, NSNumber* rssi) {
     if (!advertisement_target_id_) return;
     if (![peripheral.identifier.UUIDString isEqualToString:advertisement_target_id_]) return;
 
-    NSData* mfgData = advertisementData[CBAdvertisementDataManufacturerDataKey];
-    if (!mfgData || mfgData.length < 4) return;
+    Advertisement advertisement;
+    advertisement.timestamp_sec = lsl_local_clock();
 
-    Packet packet;
-    packet.timestamp_sec = lsl_local_clock();
-    const uint8_t* words = static_cast<const uint8_t*>(mfgData.bytes);
-    packet.data.assign(words, words + mfgData.length);
-    on_advertisement_data_(packet);
+    NSString* local_name = advertisementData[CBAdvertisementDataLocalNameKey];
+    if (local_name) advertisement.local_name = local_name.UTF8String;
+
+    NSData* mfgData = advertisementData[CBAdvertisementDataManufacturerDataKey];
+    if (mfgData) {
+      const uint8_t* bytes = static_cast<const uint8_t*>(mfgData.bytes);
+      advertisement.manufacturer_data.assign(bytes, bytes + mfgData.length);
+      if (mfgData.length >= 2) {
+        advertisement.company_id = static_cast<uint16_t>(bytes[0]) |
+                                   static_cast<uint16_t>(bytes[1] << 8);
+      }
+    }
+
+    for (CBUUID* uuid in advertisementData[CBAdvertisementDataServiceUUIDsKey]) {
+      advertisement.service_uuids.push_back(uuid.UUIDString.UTF8String);
+    }
+
+    NSDictionary<CBUUID*, NSData*>* service_data = advertisementData[CBAdvertisementDataServiceDataKey];
+    for (CBUUID* uuid in service_data) {
+      NSData* value = service_data[uuid];
+      const uint8_t* bytes = static_cast<const uint8_t*>(value.bytes);
+      advertisement.service_data.push_back({uuid.UUIDString.UTF8String,
+                                            std::vector<uint8_t>(bytes, bytes + value.length)});
+    }
+
+    if (rssi) advertisement.rssi = rssi.intValue;
+
+    NSNumber* tx_power = advertisementData[CBAdvertisementDataTxPowerLevelKey];
+    if (tx_power) advertisement.tx_power_level = tx_power.intValue;
+
+    NSNumber* connectable = advertisementData[CBAdvertisementDataIsConnectable];
+    advertisement.is_connectable = connectable ? connectable.boolValue : false;
+
+    on_advertisement_data_(advertisement);
   }
 
   void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected,
@@ -271,7 +300,7 @@ private:
   NSString* peripheral_target_id_ = nil;
   NSString* advertisement_target_id_ = nil;
   std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
-  OnDataCallback on_advertisement_data_;
+  OnAdvertisementCallback on_advertisement_data_;
   ndx::OnConnectedCallback on_connected_;
   ndx::OnDisconnectedCallback on_disconnected_;
   int rssi_ = 0;
@@ -309,7 +338,7 @@ std::unique_ptr<BleProvider> create_ble_provider() {
      advertisementData:(NSDictionary*)advertisementData
                   RSSI:(NSNumber*)RSSI {
   _provider->onDiscoveredPeripheral(peripheral);
-  _provider->onDiscoveredAdvertisement(peripheral, advertisementData);
+  _provider->onDiscoveredAdvertisement(peripheral, advertisementData, RSSI);
 }
 
 - (void)centralManager:(CBCentralManager*)central

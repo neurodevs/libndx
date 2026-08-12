@@ -17,6 +17,7 @@ typedef void (*on_connected_fn)(const char* uuid, const char* name);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_sec);
 typedef void (*on_rssi_fn)(int rssi);
 typedef void (*on_discovered_fn)(const char* uuid);
+typedef void (*on_advertisement_fn)(const char* advertisement_json);
 
 struct CharCallback {
   const char* char_uuid;  // required
@@ -35,7 +36,7 @@ char* stop_ble_gatt_rssi_polling(const char* device_uuid);
 char* stop_ble_gatt_backend(const char* device_uuid);
 
 char* create_ble_observer_backend(const char* config_json);
-char* start_ble_observer_backend(const char* device_uuid, on_data_fn on_data);
+char* start_ble_observer_backend(const char* device_uuid, on_advertisement_fn on_advertisement);
 char* stop_ble_observer_backend(const char* device_uuid);
 
 char* create_usb_backend(const char* serial_number);

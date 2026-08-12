@@ -7,7 +7,7 @@ namespace ndx {
 BleObserverBackend::BleObserverBackend(const std::string& device_id, std::unique_ptr<BleProvider> provider)
     : AcquisitionBackend(device_id), provider_(std::move(provider)) {}
 
-void BleObserverBackend::start(ndx::OnDataCallback on_advertisement) {
+void BleObserverBackend::start(ndx::OnAdvertisementCallback on_advertisement) {
   AcquisitionBackend::start();
 
   if (!provider_->is_powered_on()) {

@@ -15,7 +15,7 @@ public:
   virtual void discover_ble_uuid(const std::string& name_prefix, std::function<void(const std::string& uuid)> on_discovered) = 0;
   virtual void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected,
                                    ndx::OnDisconnectedCallback on_disconnected = nullptr) = 0;
-  virtual void start_advertisement_listen(const std::string& uuid, ndx::OnDataCallback on_data) = 0;
+  virtual void start_advertisement_listen(const std::string& uuid, ndx::OnAdvertisementCallback on_advertisement) = 0;
   virtual void stop_advertisement_listen() = 0;
   virtual void add_char_callbacks(CharCallbacks callbacks) = 0;
   virtual int read_rssi() = 0;

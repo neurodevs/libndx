@@ -15,10 +15,10 @@ static const char* GOVEE_DEVICE_UUID = "179F4A82-A2DF-C241-DB2A-1DF990779106";
 //   [3-4] temperature * 100  (signed int16 LE, °C)
 //   [5-6] humidity * 100     (uint16 LE, %)
 //   [7]   battery percentage
-static void on_advertisement(const ndx::Packet& packet) {
-  if (packet.data.size() < 8) return;
+static void on_advertisement(const ndx::Advertisement& advertisement) {
+  if (advertisement.manufacturer_data.size() < 8) return;
 
-  const uint8_t* d = packet.data.data();
+  const uint8_t* d = advertisement.manufacturer_data.data();
   // Ignore Apple iBeacon packets (manufacturer ID 0x004C) — the device also
   // broadcasts an INTELLI_ROCKS iBeacon which shares the same peripheral UUID
   if (d[0] != 0x88 || d[1] != 0xEC) return;
@@ -29,7 +29,7 @@ static void on_advertisement(const ndx::Packet& packet) {
 
   double temp_f = temp_c * 9.0 / 5.0 + 32.0;
   printf("ts=%.6f  temp: %.2f°C / %.2f°F   humidity: %.1f%%   battery: %d%%\n",
-         packet.timestamp_sec, temp_c, temp_f, humidity, battery);
+         advertisement.timestamp_sec, temp_c, temp_f, humidity, battery);
   fflush(stdout);
 }
 

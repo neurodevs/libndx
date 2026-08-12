@@ -1,6 +1,8 @@
 #include <catch2/catch_all.hpp>
 #include <nlohmann/json.hpp>
 #include <functional>
+#include <iomanip>
+#include <sstream>
 #include <unordered_map>
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
@@ -17,13 +19,13 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   void add_char_callbacks(ndx::CharCallbacks cbs) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
-  ndx::OnDataCallback on_advertisement;
-  void start_advertisement_listen(const std::string&, ndx::OnDataCallback cb) override {
+  ndx::OnAdvertisementCallback on_advertisement;
+  void start_advertisement_listen(const std::string&, ndx::OnAdvertisementCallback cb) override {
     on_advertisement = std::move(cb);
   }
   void stop_advertisement_listen() override {}
-  void simulate_advertisement(const ndx::Packet& p) {
-    if (on_advertisement) on_advertisement(p);
+  void simulate_advertisement(const ndx::Advertisement& a) {
+    if (on_advertisement) on_advertisement(a);
   }
   bool discover_ble_uuid_called = false;
   std::function<void(const std::string&)> discover_ble_uuid_callback;
@@ -479,7 +481,7 @@ struct BleObserverFfiFixture {
   }
 
   nlohmann::json start() {
-    static on_data_fn fn = [](const uint8_t*, size_t, double) {};
+    static on_advertisement_fn fn = [](const char*) {};
     return nlohmann::json::parse(start_ble_observer_backend(valid_uuid.c_str(), fn));
   }
 
@@ -491,13 +493,40 @@ struct BleObserverFfiFixture {
     set_ble_observer_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleObserverBackend> {
       struct ThrowingBleObserverBackend : ndx::BleObserverBackend {
         using ndx::BleObserverBackend::BleObserverBackend;
-        void start(ndx::OnDataCallback) override { throw std::runtime_error("internal server error"); }
+        void start(ndx::OnAdvertisementCallback) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
       };
       return std::make_shared<ThrowingBleObserverBackend>(uuid, std::make_unique<AlwaysOnBleProvider>());
     });
   }
+
+  static std::string to_hex(const std::vector<uint8_t>& bytes) {
+    std::ostringstream out;
+    out << std::hex << std::setfill('0');
+    for (uint8_t b : bytes) out << std::setw(2) << static_cast<int>(b);
+    return out.str();
+  }
+
+  ndx::Advertisement fake_advertisement() {
+    ndx::Advertisement a;
+    a.local_name = "TestSensor_0A1B";
+    a.company_id = 0xFFFF;
+    a.manufacturer_data = {0xFF, 0xFF, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+    a.service_uuids = {"0000180a-0000-1000-8000-00805f9b34fb"};
+    a.service_data = {{"0000180a-0000-1000-8000-00805f9b34fb", {0x01, 0x00}}};
+    a.rssi = -55;
+    a.tx_power_level = 4;
+    a.is_connectable = true;
+    a.timestamp_sec = 1.0;
+    return a;
+  }
 };
+
+static std::string received_advertisement_json;
+
+static void capture_advertisement(const char* json) {
+  received_advertisement_json = json ? json : "";
+}
 
 TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns ok") {
   auto json = create_and_parse(valid_uuid);
@@ -545,22 +574,65 @@ TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend returns 500
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
 }
 
-TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend calls start on backend") {
-  static std::vector<uint8_t> received_data;
-  static double received_timestamp_sec = 0.0;
-
-  static on_data_fn fn = [](const uint8_t* data, size_t len, double timestamp_sec) {
-    received_data.assign(data, data + len);
-    received_timestamp_sec = timestamp_sec;
-  };
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend serializes every advertisement field") {
+  received_advertisement_json = "";
+  auto expected = fake_advertisement();
 
   create_and_parse(valid_uuid);
-  start_ble_observer_backend(valid_uuid.c_str(), fn);
-  
-  provider->simulate_advertisement({{42, 43}, 1.0});
+  start_ble_observer_backend(valid_uuid.c_str(), capture_advertisement);
 
-  REQUIRE(received_data == std::vector<uint8_t>{42, 43});
-  REQUIRE(received_timestamp_sec == Catch::Approx(1.0));
+  provider->simulate_advertisement(expected);
+
+  auto json = nlohmann::json::parse(received_advertisement_json);
+  REQUIRE(json["localName"] == expected.local_name);
+  REQUIRE(json["companyId"] == *expected.company_id);
+  REQUIRE(json["manufacturerData"] == to_hex(expected.manufacturer_data));
+  REQUIRE(json["serviceUuids"] == nlohmann::json(expected.service_uuids));
+  REQUIRE(json["serviceData"].size() == expected.service_data.size());
+  for (const auto& sd : expected.service_data) {
+    REQUIRE(json["serviceData"][sd.uuid] == to_hex(sd.data));
+  }
+  REQUIRE(json["rssi"] == *expected.rssi);
+  REQUIRE(json["txPowerLevel"] == *expected.tx_power_level);
+  REQUIRE(json["isConnectable"] == expected.is_connectable);
+  REQUIRE(json["timestampSec"] == Catch::Approx(expected.timestamp_sec));
+}
+
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend serializes absent optional fields as null") {
+  received_advertisement_json = "";
+
+  create_and_parse(valid_uuid);
+  start_ble_observer_backend(valid_uuid.c_str(), capture_advertisement);
+
+  ndx::Advertisement sparse;
+  sparse.manufacturer_data = {0xFF, 0xFF};
+  sparse.timestamp_sec = 2.0;
+  provider->simulate_advertisement(sparse);
+
+  auto json = nlohmann::json::parse(received_advertisement_json);
+  REQUIRE(json["localName"] == "");
+  REQUIRE(json["companyId"].is_null());
+  REQUIRE(json["rssi"].is_null());
+  REQUIRE(json["txPowerLevel"].is_null());
+  REQUIRE(json["serviceUuids"].empty());
+  REQUIRE(json["serviceData"].empty());
+  REQUIRE(json["isConnectable"] == false);
+}
+
+TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend serializes empty manufacturer data") {
+  received_advertisement_json = "";
+
+  create_and_parse(valid_uuid);
+  start_ble_observer_backend(valid_uuid.c_str(), capture_advertisement);
+
+  ndx::Advertisement name_only;
+  name_only.local_name = "TestSensor_0A1B";
+  name_only.timestamp_sec = 3.0;
+  provider->simulate_advertisement(name_only);
+
+  auto json = nlohmann::json::parse(received_advertisement_json);
+  REQUIRE(json["localName"] == "TestSensor_0A1B");
+  REQUIRE(json["manufacturerData"] == "");
 }
 
 TEST_CASE_METHOD(BleObserverFfiFixture, "start_ble_observer_backend returns ok") {

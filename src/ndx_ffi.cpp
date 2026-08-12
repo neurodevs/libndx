@@ -1,9 +1,12 @@
 #include <cstring>
 #include <cstdint>
 #include <cstddef>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "ndx/ndx_ffi.hpp"
@@ -13,6 +16,13 @@
 #include "ndx/ble_provider.hpp"
 #include "ndx/usb_backend.hpp"
 #include "ndx/usb_provider.hpp"
+
+static std::string to_hex(const std::vector<uint8_t>& bytes) {
+    std::ostringstream out;
+    out << std::hex << std::setfill('0');
+    for (uint8_t b : bytes) out << std::setw(2) << static_cast<int>(b);
+    return out.str();
+}
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleObserverBackend>> g_ble_observer_backends;
@@ -218,13 +228,27 @@ extern "C" char* create_ble_observer_backend(const char* config_json) {
     });
 }
 
-extern "C" char* start_ble_observer_backend(const char* device_uuid, on_data_fn on_data) {
+extern "C" char* start_ble_observer_backend(const char* device_uuid, on_advertisement_fn on_advertisement) {
     return try_to_run([&] {
         auto backend = get_ble_observer_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
 
-        backend->start([fn = on_data](const ndx::Packet& p) {
-            fn(p.data.data(), p.data.size(), p.timestamp_sec);
+        backend->start([on_advertisement](const ndx::Advertisement& a) {
+            nlohmann::json service_data = nlohmann::json::object();
+            for (const auto& sd : a.service_data) service_data[sd.uuid] = to_hex(sd.data);
+
+            nlohmann::json j = {
+                {"localName", a.local_name},
+                {"companyId", a.company_id ? nlohmann::json(*a.company_id) : nlohmann::json(nullptr)},
+                {"manufacturerData", to_hex(a.manufacturer_data)},
+                {"serviceUuids", a.service_uuids},
+                {"serviceData", service_data},
+                {"rssi", a.rssi ? nlohmann::json(*a.rssi) : nlohmann::json(nullptr)},
+                {"txPowerLevel", a.tx_power_level ? nlohmann::json(*a.tx_power_level) : nlohmann::json(nullptr)},
+                {"isConnectable", a.is_connectable},
+                {"timestampSec", a.timestamp_sec},
+            };
+            on_advertisement(j.dump().c_str());
         });
 
         return to_ffi_result({{"status", 200}});
