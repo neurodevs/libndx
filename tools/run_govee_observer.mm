@@ -9,11 +9,6 @@
 // instead of talking to CoreBluetooth directly.
 static const char* GOVEE_DEVICE_UUID = "179F4A82-A2DF-C241-DB2A-1DF990779106";
 
-static double last_temp_c = 0.0;
-static double last_humidity = 0.0;
-static int last_battery = 0;
-static bool has_data = false;
-
 // Govee H5074 manufacturer data layout (little-endian):
 //   [0-1] manufacturer ID (0x88, 0xEC)
 //   [2]   padding (0x00)
@@ -32,13 +27,6 @@ static void on_advertisement(const ndx::Packet& packet) {
   double humidity = ((uint16_t)d[5] | ((uint16_t)d[6] << 8)) / 100.0;
   int    battery  = d[7];
 
-  if (has_data && temp_c == last_temp_c && humidity == last_humidity && battery == last_battery) return;
-
-  last_temp_c   = temp_c;
-  last_humidity = humidity;
-  last_battery  = battery;
-  has_data      = true;
-
   double temp_f = temp_c * 9.0 / 5.0 + 32.0;
   printf("ts=%.6f  temp: %.2f°C / %.2f°F   humidity: %.1f%%   battery: %d%%\n",
          packet.timestamp_sec, temp_c, temp_f, humidity, battery);
@@ -50,9 +38,9 @@ static void after(double seconds, dispatch_block_t block) {
                  dispatch_get_main_queue(), block);
 }
 
-// usage: run_govee_observer [seconds]   (0 = run until interrupted, default 30)
+// usage: run_govee_observer [seconds]   (0 = run until interrupted, default 0s)
 int main(int argc, char** argv) {
-  double duration_sec = argc > 1 ? atof(argv[1]) : 30.0;
+  double duration_sec = argc > 1 ? atof(argv[1]) : 0.0;
 
   static ndx::BleObserverBackend backend(GOVEE_DEVICE_UUID, ndx::create_ble_provider());
 
@@ -68,7 +56,7 @@ int main(int argc, char** argv) {
     after(duration_sec, ^{
       backend.stop();
       printf("stopped after %.0fs\n", duration_sec);
-      exit(has_data ? 0 : 1);
+      exit(0);
     });
   }
 
