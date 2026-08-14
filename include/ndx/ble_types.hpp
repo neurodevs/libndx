@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json_fwd.hpp>
+
 #include "ndx/acquisition_backend.hpp"
 
 namespace ndx {
@@ -31,6 +33,8 @@ struct Advertisement {
   std::optional<int> tx_power_level;
   bool is_connectable = false;
   double timestamp_sec = 0.0;
+
+  nlohmann::json to_json() const;
 };
 
 using OnAdvertisementCallback = std::function<void(const Advertisement&)>;

@@ -1,4 +1,5 @@
 #include <catch2/catch_all.hpp>
+#include <nlohmann/json.hpp>
 #include <functional>
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_observer_backend.hpp"
@@ -138,4 +139,43 @@ TEST_CASE_METHOD(BleObserverBackendFixture, "BleObserverBackend forwards adverti
   REQUIRE(receive_count == 1);
   REQUIRE(received.local_name == "TestSensor_0A1B");
   REQUIRE(received.manufacturer_data.empty());
+}
+
+TEST_CASE_METHOD(BleObserverBackendFixture, "Advertisement::to_json serializes every field") {
+  auto json = fake_advertisement().to_json();
+
+  REQUIRE(json["localName"] == "TestSensor_0A1B");
+  REQUIRE(json["companyId"] == 0xFFFF);
+  REQUIRE(json["manufacturerData"] == "ffff001122334455");
+  REQUIRE(json["serviceUuids"] ==
+          nlohmann::json::array({"0000180a-0000-1000-8000-00805f9b34fb"}));
+  REQUIRE(json["serviceData"]["0000180a-0000-1000-8000-00805f9b34fb"] == "0100");
+  REQUIRE(json["rssi"] == -55);
+  REQUIRE(json["txPowerLevel"] == 4);
+  REQUIRE(json["isConnectable"] == true);
+  REQUIRE(json["timestampSec"] == Catch::Approx(1.0));
+}
+
+TEST_CASE("Advertisement::to_json serializes absent optionals as null") {
+  ndx::Advertisement sparse;
+  sparse.timestamp_sec = 2.0;
+
+  auto json = sparse.to_json();
+
+  REQUIRE(json["localName"] == "");
+  REQUIRE(json["companyId"].is_null());
+  REQUIRE(json["rssi"].is_null());
+  REQUIRE(json["txPowerLevel"].is_null());
+  REQUIRE(json["manufacturerData"] == "");
+  REQUIRE(json["serviceUuids"].empty());
+  REQUIRE(json["serviceData"].empty());
+  REQUIRE(json["isConnectable"] == false);
+  REQUIRE(json["timestampSec"] == Catch::Approx(2.0));
+}
+
+TEST_CASE("Advertisement::to_json hex encodes bytes lowercase and zero padded") {
+  ndx::Advertisement a;
+  a.manufacturer_data = {0x00, 0x0F, 0xAB, 0xFF};
+
+  REQUIRE(a.to_json()["manufacturerData"] == "000fabff");
 }

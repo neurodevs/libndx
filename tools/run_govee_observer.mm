@@ -1,5 +1,6 @@
 #include "ndx/ble_observer_backend.hpp"
 #include "ndx/ble_provider.hpp"
+#include <nlohmann/json.hpp>
 #import <Foundation/Foundation.h>
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +31,7 @@ static void on_advertisement(const ndx::Advertisement& advertisement) {
   double temp_f = temp_c * 9.0 / 5.0 + 32.0;
   printf("ts=%.6f  temp: %.2f°C / %.2f°F   humidity: %.1f%%   battery: %d%%\n",
          advertisement.timestamp_sec, temp_c, temp_f, humidity, battery);
+  printf(advertisement.to_json().dump(2).c_str());
   fflush(stdout);
 }
 

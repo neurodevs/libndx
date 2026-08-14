@@ -11,6 +11,7 @@ set(NDX_SOURCES
   src/acquisition_backend.cpp
   src/ble/ble_gatt_backend.cpp
   src/ble/ble_observer_backend.cpp
+  src/ble/ble_types.cpp
   src/bluetooth/bluetooth_backend.cpp
   src/usb/usb_backend.cpp
   src/usb/usb_provider.cpp
