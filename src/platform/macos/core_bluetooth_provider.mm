@@ -55,16 +55,21 @@ public:
   }
 
   void start_advertisement_listen(const std::string& uuid, ndx::OnAdvertisementCallback on_advertisement_data) override {
-    advertisement_target_id_ = [NSString stringWithUTF8String:uuid.c_str()];
-    on_advertisement_data_ = on_advertisement_data;
-    NSDictionary* opts = @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
-    [manager_ scanForPeripheralsWithServices:nil options:opts];
+    NSString* uuid_ns = [NSString stringWithUTF8String:uuid.c_str()];
+    __block auto cb = std::move(on_advertisement_data);
+    dispatch_async(ble_queue_, ^{
+      advertisement_target_id_ = uuid_ns;
+      on_advertisement_data_ = std::move(cb);
+      [manager_ scanForPeripheralsWithServices:nil options:advertisementScanOptions()];
+    });
   }
 
   void stop_advertisement_listen() override {
-    [manager_ stopScan];
-    advertisement_target_id_ = nil;
-    on_advertisement_data_ = nullptr;
+    dispatch_async(ble_queue_, ^{
+      [manager_ stopScan];
+      advertisement_target_id_ = nil;
+      on_advertisement_data_ = nullptr;
+    });
   }
 
   void onDiscoveredAdvertisement(CBPeripheral* peripheral, NSDictionary* advertisementData, NSNumber* rssi) {
