@@ -11,11 +11,13 @@ struct FakeUsbProvider : ndx::UsbProvider {
   bool disconnect_called = false;
   ndx::OnDataCallback captured_on_data;
   int last_wait_after_connect_ms = -1;
+  bool should_fail_to_connect = false;
 
   void connect(const std::string& device_id,
                ndx::OnDataCallback on_data,
                ndx::OnConnectedCallback,
                int wait_after_connect_ms = 0) override {
+    if (should_fail_to_connect) throw std::runtime_error("could not open port");
     connect_requested_for = device_id;
     captured_on_data = std::move(on_data);
     last_wait_after_connect_ms = wait_after_connect_ms;
@@ -61,6 +63,11 @@ TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend can be instantiated") {
 TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start sets is_running to true") {
   start();
   REQUIRE(backend.is_running());
+}
+
+TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start rethrows when provider fails to connect") {
+  provider->should_fail_to_connect = true;
+  REQUIRE_THROWS_WITH(start(), "could not open port");
 }
 
 TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend invokes callback when packet received") {

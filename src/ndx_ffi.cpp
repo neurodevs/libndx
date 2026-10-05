@@ -271,9 +271,18 @@ extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(co
     return try_to_run([&] {
         auto backend = get_usb_backend(serial_number);
         if (backend) {
-            backend->start([fn = on_data](const ndx::Packet& p) {
-                fn(p.data.data(), p.data.size(), p.timestamp_sec);
-            });
+            if (backend->is_running()) {
+                return to_ffi_result({{"status", 400}, {"error", "usb backend already running"}});
+            }
+
+            try {
+                backend->start([fn = on_data](const ndx::Packet& p) {
+                    fn(p.data.data(), p.data.size(), p.timestamp_sec);
+                });
+            } catch (const std::exception& e) {
+                g_usb_backends.erase(serial_number);
+                return to_ffi_result({{"status", 500}, {"error", e.what()}});
+            }
         }
         return to_ffi_result({{"status", 200}});
     });
@@ -290,7 +299,9 @@ extern "C" char* write_usb_backend(const char* serial_number, const char* value)
 
 extern "C" char* stop_usb_backend(const char* serial_number) {
     return try_to_run([&] {
-        return stop_backend(serial_number, get_usb_backend);
+        auto result = stop_backend(serial_number, get_usb_backend);
+        g_usb_backends.erase(serial_number);
+        return result;
     });
 }
 

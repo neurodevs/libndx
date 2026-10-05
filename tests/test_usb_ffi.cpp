@@ -9,8 +9,10 @@ namespace {
 
 struct FakeUsbProvider : ndx::UsbProvider {
   ndx::OnDataCallback captured_on_data;
+  bool should_fail_to_connect = false;
 
   void connect(const std::string&, ndx::OnDataCallback on_data, ndx::OnConnectedCallback, int wait_after_connect_ms = 0) override {
+    if (should_fail_to_connect) throw std::runtime_error("could not open port");
     captured_on_data = std::move(on_data);
   }
   void disconnect() override {}
@@ -68,6 +70,16 @@ struct UsbFfiFixture {
   nlohmann::json stop() {
     const char* result = stop_usb_backend(valid_serial.c_str());
     return nlohmann::json::parse(result);
+  }
+
+  void set_factory_throwing_on_stop() {
+    set_usb_factory([](const std::string& uuid) -> std::shared_ptr<ndx::UsbBackend> {
+      struct StopThrowingUsbBackend : ndx::UsbBackend {
+        using ndx::UsbBackend::UsbBackend;
+        void stop() override { throw std::runtime_error("hardware fault"); }
+      };
+      return std::make_shared<StopThrowingUsbBackend>(uuid, std::make_unique<FakeUsbProvider>());
+    });
   }
 
   void set_throwing_factory() {
@@ -177,9 +189,59 @@ TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend returns ok") {
 
 TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend calls stop on backend") {
     UsbFfiFixture::start();
-    UsbFfiFixture::stop();
     auto backend = get_usb_backend(valid_serial);
+    UsbFfiFixture::stop();
     REQUIRE(!backend->is_running());
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "stop_usb_backend unregisters the backend") {
+    UsbFfiFixture::start();
+    UsbFfiFixture::stop();
+    REQUIRE(get_usb_backend(valid_serial) == nullptr);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "create_usb_backend returns ok again after stop_usb_backend") {
+    UsbFfiFixture::start();
+    UsbFfiFixture::stop();
+    auto json = create_and_parse("{\"serial_number\":\"ABCD1234\"}");
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend returns 500 when the port cannot be opened") {
+    g_fake_usb_provider->should_fail_to_connect = true;
+    auto json = UsbFfiFixture::start();
+    REQUIRE(json["status"] == 500);
+    REQUIRE(json["error"].get<std::string>().find("could not open port") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend unregisters the backend when the port cannot be opened") {
+    g_fake_usb_provider->should_fail_to_connect = true;
+    UsbFfiFixture::start();
+    REQUIRE(get_usb_backend(valid_serial) == nullptr);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "create_usb_backend returns ok again after the port could not be opened") {
+    g_fake_usb_provider->should_fail_to_connect = true;
+    UsbFfiFixture::start();
+    auto json = create_and_parse("{\"serial_number\":\"ABCD1234\"}");
+    REQUIRE(json["status"] == 200);
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend returns 400 if backend is already running") {
+    UsbFfiFixture::start();
+    auto json = UsbFfiFixture::start();
+
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "usb backend already running");
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend keeps a running backend registered when started twice") {
+    UsbFfiFixture::start();
+    UsbFfiFixture::start();
+    auto backend = get_usb_backend(valid_serial);
+
+    REQUIRE(backend != nullptr);
+    REQUIRE(backend->is_running());
 }
 
 TEST_CASE_METHOD(UsbFfiFixture, "create_usb_backend returns 500 on unexpected throw") {
@@ -200,7 +262,7 @@ TEST_CASE_METHOD(UsbFfiFixture, "start_usb_backend returns 500 on unexpected thr
 }
 
 TEST_CASE_METHOD(UsbFfiFixture, "stop_usb_backend returns 500 on unexpected throw") {
-  set_throwing_factory();
+  set_factory_throwing_on_stop();
   create_and_parse("{\"serial_number\":\"ABCD1234\"}");
   start();
   auto json = stop();
