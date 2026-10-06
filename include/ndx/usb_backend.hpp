@@ -16,6 +16,7 @@ public:
                      int wait_after_connect_ms = 0);
   void stop() override;
   virtual bool write(const uint8_t* data, size_t len);
+  void configure_port(speed_t baud_rate, bool uses_rts_cts);
   std::string name() const override { return "UsbBackend"; }
 
 private:

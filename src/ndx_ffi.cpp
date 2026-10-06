@@ -244,6 +244,12 @@ extern "C" char* stop_ble_observer_backend(const char* device_uuid) {
     });
 }
 
+extern "C" char* discover_usb_serial_numbers() {
+    return try_to_run([&] {
+        return to_ffi_result({{"status", 200}, {"serial_numbers", ndx::list_usb_serial_numbers()}});
+    });
+}
+
 extern "C" char* create_usb_backend(const char* config_json) {
     return try_to_run([&] {
         auto j = nlohmann::json::parse(config_json, nullptr, false);
@@ -262,7 +268,22 @@ extern "C" char* create_usb_backend(const char* config_json) {
             return to_ffi_result({{"status", 400}, {"error", "serial number already registered"}});
         }
 
-        g_usb_backends[serial_number] = g_usb_factory(serial_number);
+        const auto baud_rate = j.value("baud_rate", nlohmann::json(115200));
+
+        if (!baud_rate.is_number_integer() || baud_rate.get<long long>() <= 0) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid baud rate"}});
+        }
+
+        const auto flow_control = j.value("flow_control", nlohmann::json("none"));
+
+        if (flow_control != "none" && flow_control != "rts_cts") {
+            return to_ffi_result({{"status", 400}, {"error", "invalid flow control"}});
+        }
+
+        auto backend = g_usb_factory(serial_number);
+        backend->configure_port(baud_rate.get<speed_t>(), flow_control == "rts_cts");
+
+        g_usb_backends[serial_number] = backend;
         return to_ffi_result({{"status", 200}});
     });
 }
@@ -270,20 +291,21 @@ extern "C" char* create_usb_backend(const char* config_json) {
 extern "C" char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t* data, size_t len, double timestamp_sec)) {
     return try_to_run([&] {
         auto backend = get_usb_backend(serial_number);
-        if (backend) {
-            if (backend->is_running()) {
-                return to_ffi_result({{"status", 400}, {"error", "usb backend already running"}});
-            }
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
 
-            try {
-                backend->start([fn = on_data](const ndx::Packet& p) {
-                    fn(p.data.data(), p.data.size(), p.timestamp_sec);
-                });
-            } catch (const std::exception& e) {
-                g_usb_backends.erase(serial_number);
-                return to_ffi_result({{"status", 500}, {"error", e.what()}});
-            }
+        if (backend->is_running()) {
+            return to_ffi_result({{"status", 400}, {"error", "usb backend already running"}});
         }
+
+        try {
+            backend->start([fn = on_data](const ndx::Packet& p) {
+                fn(p.data.data(), p.data.size(), p.timestamp_sec);
+            });
+        } catch (const std::exception& e) {
+            g_usb_backends.erase(serial_number);
+            return to_ffi_result({{"status", 500}, {"error", e.what()}});
+        }
+
         return to_ffi_result({{"status", 200}});
     });
 }

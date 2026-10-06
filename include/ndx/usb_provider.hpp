@@ -8,6 +8,7 @@
 #include <string>
 #include <sys/types.h>
 #include <termios.h>
+#include <vector>
 
 namespace ndx {
 
@@ -20,23 +21,28 @@ public:
                        int wait_after_connect_ms = 0) = 0;
   virtual void disconnect() = 0;
   virtual bool write(const uint8_t* data, size_t len) = 0;
+  virtual void configure_port(speed_t baud_rate, bool uses_rts_cts) {}
 };
 
 std::unique_ptr<UsbProvider> create_usb_provider();
 
 std::string usb_port_path(const std::string& serial_number);
 
+std::vector<std::string> list_usb_serial_numbers();
+
 class UsbProviderSyscalls {
 public:
   static std::function<int(const char*, int)> open;
   static std::function<int(int)> close;
   static std::function<int(int, int, const termios*)> tcsetattr;
+  static std::function<int(int, speed_t)> set_nonstandard_baud_rate;
+  static std::function<std::vector<std::string>()> list_dev_names;
   static std::function<void(std::chrono::milliseconds)> sleep_for;
   static std::function<ssize_t(int, const uint8_t*, size_t)> write;
   static std::function<double()> now;
 };
 
-int open_usb_serial_port(const std::string& path, speed_t baud);
+int open_usb_serial_port(const std::string& path, speed_t baud, bool uses_rts_cts = false);
 
 void read_available_data(int fd, OnDataCallback on_data);
 

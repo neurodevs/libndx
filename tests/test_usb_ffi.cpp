@@ -17,6 +17,13 @@ struct FakeUsbProvider : ndx::UsbProvider {
   }
   void disconnect() override {}
 
+  speed_t configured_baud_rate = 0;
+  bool configured_rts_cts = false;
+  void configure_port(speed_t baud_rate, bool uses_rts_cts) override {
+    configured_baud_rate = baud_rate;
+    configured_rts_cts = uses_rts_cts;
+  }
+
   std::vector<uint8_t> written_data;
   bool write(const uint8_t* data, size_t len) override {
     written_data.assign(data, data + len);
@@ -129,6 +136,54 @@ TEST_CASE_METHOD(UsbFfiFixture, "create_usb_backend returns 400 if JSON is malfo
     auto json = create_and_parse("{");
     REQUIRE(json["status"] == 400);
     REQUIRE(json["error"] == "malformed JSON");
+}
+
+TEST_CASE_METHOD(ValidUsbFixture, "create_usb_backend opens the port at 115200 baud without flow control by default") {
+    REQUIRE(g_fake_usb_provider->configured_baud_rate == 115200);
+    REQUIRE(!g_fake_usb_provider->configured_rts_cts);
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "create_usb_backend passes baud rate and rts/cts flow control to the port") {
+    auto json = create_and_parse("{\"serial_number\":\"ABCD1234\",\"baud_rate\":1000000,\"flow_control\":\"rts_cts\"}");
+    REQUIRE(json["status"] == 200);
+    REQUIRE(g_fake_usb_provider->configured_baud_rate == 1000000);
+    REQUIRE(g_fake_usb_provider->configured_rts_cts);
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "create_usb_backend returns 400 if baud rate is not a positive integer") {
+    auto bad_baud_rate = GENERATE("0", "-9600", "\"fast\"", "9600.5");
+    auto config = std::string("{\"serial_number\":\"ABCD1234\",\"baud_rate\":") + bad_baud_rate + "}";
+    auto json = create_and_parse(config.c_str());
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "invalid baud rate");
+    REQUIRE(get_usb_backend(valid_serial) == nullptr);
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "create_usb_backend returns 400 if flow control is not none or rts_cts") {
+    auto bad_flow_control = GENERATE("\"xon_xoff\"", "true", "1");
+    auto config = std::string("{\"serial_number\":\"ABCD1234\",\"flow_control\":") + bad_flow_control + "}";
+    auto json = create_and_parse(config.c_str());
+    REQUIRE(json["status"] == 400);
+    REQUIRE(json["error"] == "invalid flow control");
+    REQUIRE(get_usb_backend(valid_serial) == nullptr);
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "start_usb_backend returns 400 if backend not found") {
+    auto json = start();
+    REQUIRE(json["status"] == 400);
+}
+
+TEST_CASE_METHOD(UsbFfiFixture, "discover_usb_serial_numbers returns the serial number of each usb serial port") {
+    auto list_dev_names = ndx::UsbProviderSyscalls::list_dev_names;
+    ndx::UsbProviderSyscalls::list_dev_names = []() {
+        return std::vector<std::string>{"cu.usbserial-ZZZZ9999", "tty.usbserial-ZZZZ9999", "cu.Bluetooth-Incoming-Port", "cu.usbserial-AAAA1111"};
+    };
+
+    auto json = nlohmann::json::parse(discover_usb_serial_numbers());
+    ndx::UsbProviderSyscalls::list_dev_names = list_dev_names;
+
+    REQUIRE(json["status"] == 200);
+    REQUIRE(json["serial_numbers"] == std::vector<std::string>{"AAAA1111", "ZZZZ9999"});
 }
 
 TEST_CASE_METHOD(ValidUsbFixture, "start_usb_backend returns ok") {

@@ -30,10 +30,17 @@ struct Pty {
 };
 
 struct RestoreUsbProviderSyscalls {
+  std::function<int(int, speed_t)> original_set_nonstandard_baud_rate =
+      ndx::UsbProviderSyscalls::set_nonstandard_baud_rate;
+  std::function<std::vector<std::string>()> original_list_dev_names =
+      ndx::UsbProviderSyscalls::list_dev_names;
+
   ~RestoreUsbProviderSyscalls() {
     ndx::UsbProviderSyscalls::open = [](const char* path, int flags) { return ::open(path, flags); };
     ndx::UsbProviderSyscalls::close = ::close;
     ndx::UsbProviderSyscalls::tcsetattr = ::tcsetattr;
+    ndx::UsbProviderSyscalls::set_nonstandard_baud_rate = original_set_nonstandard_baud_rate;
+    ndx::UsbProviderSyscalls::list_dev_names = original_list_dev_names;
     ndx::UsbProviderSyscalls::sleep_for = [](std::chrono::milliseconds d) { std::this_thread::sleep_for(d); };
     ndx::UsbProviderSyscalls::write = [](int fd, const uint8_t* data, size_t len) { return ::write(fd, data, len); };
     ndx::UsbProviderSyscalls::now = []() { return lsl_local_clock(); };
@@ -95,6 +102,116 @@ TEST_CASE("open_usb_serial_port returns a valid descriptor for existing path") {
   int fd = ndx::open_usb_serial_port(pty.slave_path, B115200);
   REQUIRE(fd >= 0);
   close(fd);
+}
+
+TEST_CASE("list_usb_serial_numbers returns the sorted serial number of each usb serial port") {
+  RestoreUsbProviderSyscalls restore;
+  ndx::UsbProviderSyscalls::list_dev_names = []() {
+    return std::vector<std::string>{"cu.usbserial-ZZZZ9999", "tty.usbserial-ZZZZ9999", "null", "cu.usbserial-AAAA1111"};
+  };
+
+  REQUIRE(ndx::list_usb_serial_numbers() == std::vector<std::string>{"AAAA1111", "ZZZZ9999"});
+}
+
+TEST_CASE("list_usb_serial_numbers returns nothing when no usb serial port is attached") {
+  RestoreUsbProviderSyscalls restore;
+  ndx::UsbProviderSyscalls::list_dev_names = []() {
+    return std::vector<std::string>{"cu.Bluetooth-Incoming-Port", "null"};
+  };
+
+  REQUIRE(ndx::list_usb_serial_numbers().empty());
+}
+
+TEST_CASE("open_usb_serial_port turns on rts/cts flow control only when asked") {
+  RestoreUsbProviderSyscalls restore;
+  std::vector<bool> uses_rts_cts;
+  ndx::UsbProviderSyscalls::tcsetattr = [&](int fd, int actions, const termios* tty) {
+    uses_rts_cts.push_back((tty->c_cflag & CRTSCTS) == CRTSCTS);
+    return ::tcsetattr(fd, actions, tty);
+  };
+
+  Pty pty;
+  close(ndx::open_usb_serial_port(pty.slave_path, B115200));
+  close(ndx::open_usb_serial_port(pty.slave_path, B115200, true));
+
+  REQUIRE(uses_rts_cts == std::vector<bool>{false, true});
+}
+
+TEST_CASE("open_usb_serial_port sets a nonstandard baud rate after configuring the port") {
+  RestoreUsbProviderSyscalls restore;
+  std::vector<std::string> calls;
+  ndx::UsbProviderSyscalls::tcsetattr = [&](int fd, int actions, const termios* tty) {
+    calls.push_back("tcsetattr:" + std::to_string(cfgetospeed(tty)));
+    return ::tcsetattr(fd, actions, tty);
+  };
+  ndx::UsbProviderSyscalls::set_nonstandard_baud_rate = [&](int, speed_t baud) {
+    calls.push_back("nonstandard:" + std::to_string(baud));
+    return 0;
+  };
+
+  Pty pty;
+  int fd = ndx::open_usb_serial_port(pty.slave_path, 1000000);
+  REQUIRE(fd >= 0);
+  close(fd);
+
+  REQUIRE(calls == std::vector<std::string>{"tcsetattr:115200", "nonstandard:1000000"});
+}
+
+TEST_CASE("open_usb_serial_port sets a standard baud rate through termios alone") {
+  RestoreUsbProviderSyscalls restore;
+  std::vector<std::string> calls;
+  ndx::UsbProviderSyscalls::tcsetattr = [&](int fd, int actions, const termios* tty) {
+    calls.push_back("tcsetattr:" + std::to_string(cfgetospeed(tty)));
+    return ::tcsetattr(fd, actions, tty);
+  };
+  ndx::UsbProviderSyscalls::set_nonstandard_baud_rate = [&](int, speed_t baud) {
+    calls.push_back("nonstandard:" + std::to_string(baud));
+    return 0;
+  };
+
+  Pty pty;
+  close(ndx::open_usb_serial_port(pty.slave_path, B230400));
+
+  REQUIRE(calls == std::vector<std::string>{"tcsetattr:230400"});
+}
+
+TEST_CASE("open_usb_serial_port closes the fd when the nonstandard baud rate is rejected") {
+  RestoreUsbProviderSyscalls restore;
+  std::vector<int> closed_fds;
+  ndx::UsbProviderSyscalls::close = [&](int fd) {
+    closed_fds.push_back(fd);
+    return ::close(fd);
+  };
+  ndx::UsbProviderSyscalls::set_nonstandard_baud_rate = [](int, speed_t) { return -1; };
+
+  Pty pty;
+  REQUIRE(ndx::open_usb_serial_port(pty.slave_path, 1000000) == -1);
+  REQUIRE(closed_fds.size() == 1);
+}
+
+TEST_CASE("UsbProvider connect opens the port with its configured settings") {
+  RestoreUsbProviderSyscalls restore;
+  Pty pty;
+  ndx::UsbProviderSyscalls::open = [&](const char*, int flags) { return ::open(pty.slave_path, flags); };
+
+  bool used_rts_cts = false;
+  ndx::UsbProviderSyscalls::tcsetattr = [&](int fd, int actions, const termios* tty) {
+    used_rts_cts = (tty->c_cflag & CRTSCTS) == CRTSCTS;
+    return ::tcsetattr(fd, actions, tty);
+  };
+  speed_t nonstandard_baud_rate = 0;
+  ndx::UsbProviderSyscalls::set_nonstandard_baud_rate = [&](int, speed_t baud) {
+    nonstandard_baud_rate = baud;
+    return 0;
+  };
+
+  auto provider = ndx::create_usb_provider();
+  provider->configure_port(1000000, true);
+  provider->connect("ABCD1234", [](const ndx::Packet&) {}, nullptr);
+  provider->disconnect();
+
+  REQUIRE(used_rts_cts);
+  REQUIRE(nonstandard_baud_rate == 1000000);
 }
 
 TEST_CASE("UsbProvider connect throws when port can't be opened") {

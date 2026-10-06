@@ -25,6 +25,13 @@ struct FakeUsbProvider : ndx::UsbProvider {
 
   void disconnect() override { disconnect_called = true; }
 
+  speed_t configured_baud_rate = 0;
+  bool configured_rts_cts = false;
+  void configure_port(speed_t baud_rate, bool uses_rts_cts) override {
+    configured_baud_rate = baud_rate;
+    configured_rts_cts = uses_rts_cts;
+  }
+
   std::vector<uint8_t> written_data;
   bool write(const uint8_t* data, size_t len) override {
     written_data.assign(data, data + len);
@@ -68,6 +75,12 @@ TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start sets is_running to true") 
 TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend start rethrows when provider fails to connect") {
   provider->should_fail_to_connect = true;
   REQUIRE_THROWS_WITH(start(), "could not open port");
+}
+
+TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend configure_port passes port settings to the provider") {
+  backend.configure_port(1000000, true);
+  REQUIRE(provider->configured_baud_rate == 1000000);
+  REQUIRE(provider->configured_rts_cts);
 }
 
 TEST_CASE_METHOD(UsbBackendFixture, "UsbBackend invokes callback when packet received") {

@@ -20,4 +20,8 @@ bool UsbBackend::write(const uint8_t* data, size_t len) {
   return provider_->write(data, len);
 }
 
+void UsbBackend::configure_port(speed_t baud_rate, bool uses_rts_cts) {
+  provider_->configure_port(baud_rate, uses_rts_cts);
+}
+
 }
