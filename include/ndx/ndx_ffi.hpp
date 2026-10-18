@@ -17,6 +17,7 @@ typedef void (*on_connected_fn)(const char* uuid, const char* name);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_sec);
 typedef void (*on_rssi_fn)(int rssi);
 typedef void (*on_discovered_fn)(const char* uuid);
+typedef void (*on_scanned_fn)(const char* uuid, const char* name);
 typedef void (*on_advertisement_fn)(const char* advertisement_json);
 
 struct CharCallback {
@@ -26,6 +27,9 @@ struct CharCallback {
 };
 
 char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered);
+
+char* start_ble_scan(const char* name_prefix, on_scanned_fn on_scanned);
+char* stop_ble_scan(const char* name_prefix);
 
 char* create_ble_gatt_backend(const char* config_json);
 char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks);
@@ -59,6 +63,7 @@ std::shared_ptr<ndx::BleObserverBackend> get_ble_observer_backend(const std::str
 std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number);
 void reset_ble_gatt_backends();
 void reset_ble_observer_backends();
+void reset_ble_scans();
 void reset_usb_backends();
 void set_ble_gatt_factory(BleGattFactory factory);
 void set_ble_observer_factory(BleObserverFactory factory);

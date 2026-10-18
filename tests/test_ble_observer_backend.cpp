@@ -5,6 +5,8 @@
 #include "ndx/ble_observer_backend.hpp"
 
 struct FakeObserverProvider : ndx::BleProvider {
+  void start_ble_scan(const std::string&, std::function<void(const std::string&, const std::string&)>) override {}
+  void stop_ble_scan() override {}
   bool powered_on = true;
   std::string listen_requested_for;
   bool stop_listening_called = false;

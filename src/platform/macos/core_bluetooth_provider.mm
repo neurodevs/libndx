@@ -50,8 +50,37 @@ public:
       if (manager_.state == CBManagerStatePoweredOn) {
         [manager_ scanForPeripheralsWithServices:nil options:nil];
       }
-      // else: onStateUpdated will start the scan when Bluetooth becomes ready
     });
+  }
+
+  void start_ble_scan(const std::string& name_prefix,
+                      std::function<void(const std::string&, const std::string&)> on_scanned) override {
+    NSString* prefix_ns = [NSString stringWithUTF8String:name_prefix.c_str()];
+    __block auto cb = std::move(on_scanned);
+    dispatch_async(ble_queue_, ^{
+      scan_prefix_ = prefix_ns;
+      on_scanned_ = std::move(cb);
+      if (manager_.state == CBManagerStatePoweredOn) {
+        [manager_ scanForPeripheralsWithServices:nil options:nil];
+      }
+    });
+  }
+
+  void stop_ble_scan() override {
+    dispatch_async(ble_queue_, ^{
+      [manager_ stopScan];
+      scan_prefix_ = nil;
+      on_scanned_ = nullptr;
+    });
+  }
+
+  void onScannedPeripheral(CBPeripheral* peripheral, NSDictionary* advertisementData) {
+    if (!scan_prefix_ || !on_scanned_) return;
+
+    NSString* name = advertisementData[CBAdvertisementDataLocalNameKey] ?: peripheral.name ?: @"";
+    if (![name hasPrefix:scan_prefix_]) return;
+
+    on_scanned_(peripheral.identifier.UUIDString.UTF8String, name.UTF8String);
   }
 
   void start_advertisement_listen(const std::string& uuid, ndx::OnAdvertisementCallback on_advertisement_data) override {
@@ -175,7 +204,7 @@ public:
 
   void onStateUpdated() {
     if (state_sem_) dispatch_semaphore_signal(state_sem_);
-    if (manager_.state == CBManagerStatePoweredOn && discover_prefix_) {
+    if (manager_.state == CBManagerStatePoweredOn && (discover_prefix_ || scan_prefix_)) {
       [manager_ scanForPeripheralsWithServices:nil options:nil];
     }
   }
@@ -298,6 +327,8 @@ private:
 
   NSString* discover_prefix_ = nil;
   std::function<void(const std::string&)> on_uuid_discovered_;
+  NSString* scan_prefix_ = nil;
+  std::function<void(const std::string&, const std::string&)> on_scanned_;
   CoreBluetoothDelegate* delegate_;
   CBCentralManager* manager_;
   dispatch_queue_t ble_queue_ = nil;
@@ -342,6 +373,7 @@ std::unique_ptr<BleProvider> create_ble_provider() {
  didDiscoverPeripheral:(CBPeripheral*)peripheral
      advertisementData:(NSDictionary*)advertisementData
                   RSSI:(NSNumber*)RSSI {
+  _provider->onScannedPeripheral(peripheral, advertisementData);
   _provider->onDiscoveredPeripheral(peripheral);
   _provider->onDiscoveredAdvertisement(peripheral, advertisementData, RSSI);
 }

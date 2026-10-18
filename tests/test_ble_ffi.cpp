@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
+#include <vector>
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ndx_ffi.hpp"
 
@@ -35,6 +36,23 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   }
   void simulate_discovery(const std::string& uuid) {
     if (discover_ble_uuid_callback) discover_ble_uuid_callback(uuid);
+  }
+  std::string scan_prefix;
+  bool is_scanning = false;
+  int* num_scans_stopped = nullptr;
+  std::function<void(const std::string&, const std::string&)> on_scanned;
+  void start_ble_scan(const std::string& prefix,
+                      std::function<void(const std::string&, const std::string&)> cb) override {
+    scan_prefix = prefix;
+    is_scanning = true;
+    on_scanned = std::move(cb);
+  }
+  void stop_ble_scan() override {
+    is_scanning = false;
+    if (num_scans_stopped) ++*num_scans_stopped;
+  }
+  void simulate_scanned(const std::string& uuid, const std::string& name) {
+    if (on_scanned) on_scanned(uuid, name);
   }
   void simulate_packet(const ndx::Packet& p) {
     for (auto& [uuid, cb] : callbacks) cb(p);
@@ -695,4 +713,106 @@ TEST_CASE_METHOD(BleObserverFfiFixture, "create_ble_observer_backend runs again 
 
   auto json = create_and_parse(valid_uuid);
   REQUIRE(json["status"] == 200);
+}
+
+// Scan tests
+
+struct BleScanFfiFixture {
+  static constexpr const char* name_prefix = "Muse";
+  AlwaysOnBleProvider* provider = nullptr;
+  int num_scans_stopped = 0;
+
+  BleScanFfiFixture() {
+    reset_ble_scans();
+    set_ble_provider_factory([this]() {
+      auto p = std::make_unique<AlwaysOnBleProvider>();
+      p->num_scans_stopped = &num_scans_stopped;
+      provider = p.get();
+      return p;
+    });
+  }
+
+  ~BleScanFfiFixture() { reset_ble_scans(); }
+
+  nlohmann::json start(on_scanned_fn cb = nullptr) {
+    return nlohmann::json::parse(start_ble_scan(name_prefix, cb));
+  }
+
+  nlohmann::json stop(const char* prefix = name_prefix) {
+    return nlohmann::json::parse(stop_ble_scan(prefix));
+  }
+};
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan returns 200") {
+  REQUIRE(start()["status"] == 200);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan scans for the name prefix") {
+  start();
+  REQUIRE(provider != nullptr);
+  REQUIRE(provider->is_scanning);
+  REQUIRE(provider->scan_prefix == name_prefix);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports the uuid and name of each scanned peripheral") {
+  static std::vector<std::pair<std::string, std::string>> scanned;
+  scanned.clear();
+  static on_scanned_fn cb = [](const char* uuid, const char* name) { scanned.emplace_back(uuid, name); };
+
+  start(cb);
+  provider->simulate_scanned("UUID-1", "Muse-1A2B");
+  provider->simulate_scanned("UUID-2", "MuseS-3C4D");
+
+  REQUIRE(scanned == std::vector<std::pair<std::string, std::string>>{
+                         {"UUID-1", "Muse-1A2B"}, {"UUID-2", "MuseS-3C4D"}});
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports each uuid only once per scan") {
+  static std::vector<std::string> scanned_uuids;
+  scanned_uuids.clear();
+  static on_scanned_fn cb = [](const char* uuid, const char*) { scanned_uuids.emplace_back(uuid); };
+
+  start(cb);
+  provider->simulate_scanned("UUID-1", "Muse-1A2B");
+  provider->simulate_scanned("UUID-1", "Muse-1A2B");
+  provider->simulate_scanned("UUID-2", "Muse-3C4D");
+
+  REQUIRE(scanned_uuids == std::vector<std::string>{"UUID-1", "UUID-2"});
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports a uuid again in a later scan") {
+  static std::vector<std::string> scanned_uuids;
+  scanned_uuids.clear();
+  static on_scanned_fn cb = [](const char* uuid, const char*) { scanned_uuids.emplace_back(uuid); };
+
+  start(cb);
+  provider->simulate_scanned("UUID-1", "Muse-1A2B");
+  stop();
+  start(cb);
+  provider->simulate_scanned("UUID-1", "Muse-1A2B");
+
+  REQUIRE(scanned_uuids == std::vector<std::string>{"UUID-1", "UUID-1"});
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "stop_ble_scan stops the scan for the prefix") {
+  start();
+  auto json = stop();
+
+  REQUIRE(json["status"] == 200);
+  REQUIRE(num_scans_stopped == 1);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "stop_ble_scan returns 400 for a prefix not being scanned") {
+  auto json = stop("Govee");
+
+  REQUIRE(json["status"] == 400);
+  REQUIRE(json["error"] == "backend not found");
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan again for the same prefix stops the earlier scan") {
+  start();
+  start();
+
+  REQUIRE(num_scans_stopped == 1);
+  REQUIRE(provider->is_scanning);
 }

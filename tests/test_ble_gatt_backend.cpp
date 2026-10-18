@@ -5,6 +5,8 @@
 #include "ndx/ble_gatt_backend.hpp"
 
 struct FakeBleProvider : ndx::BleProvider {
+  void start_ble_scan(const std::string&, std::function<void(const std::string&, const std::string&)>) override {}
+  void stop_ble_scan() override {}
   bool powered_on = true;
   std::string scan_requested_for;
   std::string disconnect_requested_for;

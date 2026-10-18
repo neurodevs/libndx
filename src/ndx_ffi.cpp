@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -18,6 +19,7 @@
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleObserverBackend>> g_ble_observer_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
+static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scans;
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
 static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
@@ -77,6 +79,40 @@ extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_
             }
             if (on_discovered) on_discovered(uuid.c_str());
         });
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
+extern "C" char* start_ble_scan(const char* name_prefix, on_scanned_fn on_scanned) {
+    return try_to_run([&] {
+        std::string prefix = name_prefix;
+        auto existing = g_ble_scans.find(prefix);
+
+        if (existing != g_ble_scans.end()) {
+            existing->second->stop_ble_scan();
+            g_ble_scans.erase(existing);
+        }
+
+        auto provider = g_ble_provider_factory();
+        auto reported_uuids = std::make_shared<std::unordered_set<std::string>>();
+        
+        provider->start_ble_scan(prefix, [on_scanned, reported_uuids](const std::string& uuid, const std::string& name) {
+            if (!reported_uuids->insert(uuid).second) return;
+            if (on_scanned) on_scanned(uuid.c_str(), name.c_str());
+        });
+        g_ble_scans[prefix] = std::move(provider);
+
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
+extern "C" char* stop_ble_scan(const char* name_prefix) {
+    return try_to_run([&] {
+        auto it = g_ble_scans.find(name_prefix);
+        if (it == g_ble_scans.end()) return to_ffi_result(BACKEND_NOT_FOUND);
+
+        it->second->stop_ble_scan();
+        g_ble_scans.erase(it);
         return to_ffi_result({{"status", 200}});
     });
 }
@@ -345,6 +381,10 @@ void reset_ble_observer_backends() {
     };
 }
 
+void reset_ble_scans() {
+    g_ble_scans.clear();
+    g_ble_provider_factory = []() { return ndx::create_ble_provider(); };
+}
 
 void reset_usb_backends() {
     g_usb_backends.clear();
