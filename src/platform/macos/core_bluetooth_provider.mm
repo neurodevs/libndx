@@ -61,9 +61,13 @@ public:
       scan_prefix_ = prefix_ns;
       on_scanned_ = std::move(cb);
       if (manager_.state == CBManagerStatePoweredOn) {
-        [manager_ scanForPeripheralsWithServices:nil options:nil];
+        [manager_ scanForPeripheralsWithServices:nil options:scanOptions()];
       }
     });
+  }
+
+  static NSDictionary* scanOptions() {
+    return @{CBCentralManagerScanOptionAllowDuplicatesKey: @YES};
   }
 
   void stop_ble_scan() override {
@@ -205,7 +209,7 @@ public:
   void onStateUpdated() {
     if (state_sem_) dispatch_semaphore_signal(state_sem_);
     if (manager_.state == CBManagerStatePoweredOn && (discover_prefix_ || scan_prefix_)) {
-      [manager_ scanForPeripheralsWithServices:nil options:nil];
+      [manager_ scanForPeripheralsWithServices:nil options:scan_prefix_ ? scanOptions() : nil];
     }
   }
 

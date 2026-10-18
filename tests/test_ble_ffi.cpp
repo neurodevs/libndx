@@ -721,12 +721,14 @@ struct BleScanFfiFixture {
   static constexpr const char* name_prefix = "Muse";
   AlwaysOnBleProvider* provider = nullptr;
   int num_scans_stopped = 0;
+  int num_scanners_created = 0;
 
   BleScanFfiFixture() {
     reset_ble_scans();
     set_ble_provider_factory([this]() {
       auto p = std::make_unique<AlwaysOnBleProvider>();
       p->num_scans_stopped = &num_scans_stopped;
+      ++num_scanners_created;
       provider = p.get();
       return p;
     });
@@ -734,8 +736,8 @@ struct BleScanFfiFixture {
 
   ~BleScanFfiFixture() { reset_ble_scans(); }
 
-  nlohmann::json start(on_scanned_fn cb = nullptr) {
-    return nlohmann::json::parse(start_ble_scan(name_prefix, cb));
+  nlohmann::json start(on_scanned_fn cb = nullptr, const char* prefix = name_prefix) {
+    return nlohmann::json::parse(start_ble_scan(prefix, cb));
   }
 
   nlohmann::json stop(const char* prefix = name_prefix) {
@@ -809,10 +811,35 @@ TEST_CASE_METHOD(BleScanFfiFixture, "stop_ble_scan returns 400 for a prefix not 
   REQUIRE(json["error"] == "backend not found");
 }
 
-TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan again for the same prefix stops the earlier scan") {
+TEST_CASE_METHOD(BleScanFfiFixture, "stop_ble_scan keeps the scanner alive for queued bluetooth work") {
+  start();
+  stop();
+
+  REQUIRE(num_scanners_created == 1);
+  REQUIRE_FALSE(provider->is_scanning);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan again for the same prefix reuses its scanner") {
+  start();
+  stop();
+  start();
+
+  REQUIRE(num_scanners_created == 1);
+  REQUIRE(provider->is_scanning);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan while already scanning the prefix restarts its scanner") {
   start();
   start();
 
+  REQUIRE(num_scanners_created == 1);
   REQUIRE(num_scans_stopped == 1);
   REQUIRE(provider->is_scanning);
+}
+
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan gives each prefix its own scanner") {
+  start(nullptr, "Muse");
+  start(nullptr, "Govee_H5074");
+
+  REQUIRE(num_scanners_created == 2);
 }

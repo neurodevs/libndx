@@ -19,7 +19,14 @@
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleObserverBackend>> g_ble_observer_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
-static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scans;
+
+struct BleScan {
+    std::unique_ptr<ndx::BleProvider> provider;
+    bool is_scanning = false;
+};
+
+static std::unordered_map<std::string, BleScan> g_ble_scans;
+
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
 
 static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
@@ -83,24 +90,31 @@ extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_
     });
 }
 
+static void stop_scanning(BleScan& scan) {
+    if (!scan.is_scanning) return;
+
+    scan.provider->stop_ble_scan();
+    scan.is_scanning = false;
+}
+
 extern "C" char* start_ble_scan(const char* name_prefix, on_scanned_fn on_scanned) {
     return try_to_run([&] {
         std::string prefix = name_prefix;
-        auto existing = g_ble_scans.find(prefix);
+        auto& scan = g_ble_scans[prefix];
 
-        if (existing != g_ble_scans.end()) {
-            existing->second->stop_ble_scan();
-            g_ble_scans.erase(existing);
+        if (scan.provider) {
+            stop_scanning(scan);
+        } else {
+            scan.provider = g_ble_provider_factory();
         }
 
-        auto provider = g_ble_provider_factory();
         auto reported_uuids = std::make_shared<std::unordered_set<std::string>>();
-        
-        provider->start_ble_scan(prefix, [on_scanned, reported_uuids](const std::string& uuid, const std::string& name) {
+
+        scan.provider->start_ble_scan(prefix, [on_scanned, reported_uuids](const std::string& uuid, const std::string& name) {
             if (!reported_uuids->insert(uuid).second) return;
             if (on_scanned) on_scanned(uuid.c_str(), name.c_str());
         });
-        g_ble_scans[prefix] = std::move(provider);
+        scan.is_scanning = true;
 
         return to_ffi_result({{"status", 200}});
     });
@@ -111,8 +125,7 @@ extern "C" char* stop_ble_scan(const char* name_prefix) {
         auto it = g_ble_scans.find(name_prefix);
         if (it == g_ble_scans.end()) return to_ffi_result(BACKEND_NOT_FOUND);
 
-        it->second->stop_ble_scan();
-        g_ble_scans.erase(it);
+        stop_scanning(it->second);
         return to_ffi_result({{"status", 200}});
     });
 }
