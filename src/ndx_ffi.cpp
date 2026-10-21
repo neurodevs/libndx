@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <memory>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -108,10 +107,7 @@ extern "C" char* start_ble_scan(const char* name_prefix, on_scanned_fn on_scanne
             scan.provider = g_ble_provider_factory();
         }
 
-        auto reported_uuids = std::make_shared<std::unordered_set<std::string>>();
-
-        scan.provider->start_ble_scan(prefix, [on_scanned, reported_uuids](const std::string& uuid, const std::string& name) {
-            if (!reported_uuids->insert(uuid).second) return;
+        scan.provider->start_ble_scan(prefix, [on_scanned](const std::string& uuid, const std::string& name) {
             if (on_scanned) on_scanned(uuid.c_str(), name.c_str());
         });
         scan.is_scanning = true;
@@ -164,7 +160,7 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
     });
 }
 
-extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_disconnected_fn on_disconnected, const CharCallback* callbacks, size_t num_callbacks) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
@@ -175,12 +171,17 @@ extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn
                 fn(p.data.data(), p.data.size(), p.timestamp_sec);
             }});
         }
-        ndx::OnConnectedCallback cb = on_connected
+        ndx::OnConnectedCallback connected_cb = on_connected
             ? ndx::OnConnectedCallback([on_connected](const ndx::Device* p) {
                 on_connected(p ? p->id.c_str() : nullptr, p ? p->name.c_str() : nullptr);
               })
             : nullptr;
-        backend->start(std::move(cbs), std::move(cb));
+        ndx::OnDisconnectedCallback disconnected_cb = on_disconnected
+            ? ndx::OnDisconnectedCallback([on_disconnected](bool intentional) {
+                on_disconnected(intentional ? 1 : 0);
+              })
+            : nullptr;
+        backend->start(std::move(cbs), std::move(connected_cb), std::move(disconnected_cb));
         return to_ffi_result({{"status", 200}});
     });
 }

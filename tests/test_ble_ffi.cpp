@@ -11,11 +11,16 @@
 struct AlwaysOnBleProvider : ndx::BleProvider {
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
   ndx::OnConnectedCallback on_connected;
+  ndx::OnDisconnectedCallback on_disconnected;
   bool is_powered_on() override { return true; }
   void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback connected,
-                           ndx::OnDisconnectedCallback) override {
+                           ndx::OnDisconnectedCallback disconnected) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
     on_connected = std::move(connected);
+    on_disconnected = std::move(disconnected);
+  }
+  void simulate_disconnected(bool intentional) {
+    if (on_disconnected) on_disconnected(intentional);
   }
   void add_char_callbacks(ndx::CharCallbacks cbs) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
@@ -111,7 +116,7 @@ struct BleFfiFixture {
 
   nlohmann::json start() {
     static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
-    const char* result = start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+    const char* result = start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
     return nlohmann::json::parse(result);
   }
 
@@ -234,7 +239,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes C callback whe
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
   provider->simulate_packet({{42, 43}, 1.0});
 
   REQUIRE(received_data == std::vector<uint8_t>{42, 43});
@@ -249,7 +254,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend preserves sub-millisec
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
   provider->simulate_packet({{}, 1750123456.7891234});
 
   REQUIRE(received_timestamp_sec == Catch::Approx(1750123456.7891234).epsilon(1e-9));
@@ -262,7 +267,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend routes multiple callba
     {"char-b", nullptr, [](const uint8_t*, size_t, double) { b_calls++; }},
   };
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, cbs, 2);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, cbs, 2);
   provider->simulate_packet(ndx::Packet{});
 
   REQUIRE(a_calls == 1);
@@ -278,12 +283,25 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected c
   };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), fn, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), fn, nullptr, &cb, 1);
   ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
   provider->simulate_connected(&peripheral);
 
   REQUIRE(received_uuid == "test-uuid");
   REQUIRE(received_name == "Muse-1234");
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports each disconnect and whether it was intentional") {
+  static std::vector<int> received;
+  received.clear();
+  static on_disconnected_fn fn = [](int intentional) { received.push_back(intentional); };
+  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
+
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, fn, &cb, 1);
+  provider->simulate_disconnected(false);
+  provider->simulate_disconnected(true);
+
+  REQUIRE(received == std::vector<int>{0, 1});
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "start_ble_gatt_backend returns 500 on unexpected throw") {
@@ -769,7 +787,7 @@ TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports the uuid and name of
                          {"UUID-1", "Muse-1A2B"}, {"UUID-2", "MuseS-3C4D"}});
 }
 
-TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports each uuid only once per scan") {
+TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports every advertisement so callers can tell a device is still nearby") {
   static std::vector<std::string> scanned_uuids;
   scanned_uuids.clear();
   static on_scanned_fn cb = [](const char* uuid, const char*) { scanned_uuids.emplace_back(uuid); };
@@ -779,7 +797,7 @@ TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports each uuid only once 
   provider->simulate_scanned("UUID-1", "Muse-1A2B");
   provider->simulate_scanned("UUID-2", "Muse-3C4D");
 
-  REQUIRE(scanned_uuids == std::vector<std::string>{"UUID-1", "UUID-2"});
+  REQUIRE(scanned_uuids == std::vector<std::string>{"UUID-1", "UUID-1", "UUID-2"});
 }
 
 TEST_CASE_METHOD(BleScanFfiFixture, "start_ble_scan reports a uuid again in a later scan") {

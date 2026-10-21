@@ -30,8 +30,7 @@ public:
 
   ~CoreBluetoothProvider() {
     CBCentralManager* manager = manager_;
-    dispatch_queue_t queue = ble_queue_;
-    dispatch_async(queue, ^{
+    dispatch_sync(ble_queue_, ^{
       manager.delegate = nil;
       [manager stopScan];
     });
@@ -308,18 +307,23 @@ public:
     if (![delegate_.peripheral.identifier.UUIDString isEqualToString:[NSString stringWithUTF8String:uuid.c_str()]]) return;
     CBPeripheral* peripheral = delegate_.peripheral;
     CBCentralManager* manager = manager_;
+    is_disconnecting_on_purpose_ = true;
     dispatch_async(ble_queue_, ^{
       [manager cancelPeripheralConnection:peripheral];
     });
   }
 
   void onDisconnectedPeripheral(CBPeripheral* peripheral) {
-    if (delegate_.peripheral == peripheral) {
-      delegate_.peripheral = nil;
-    }
+    if (delegate_.peripheral != peripheral) return;
+
+    delegate_.peripheral = nil;
     characteristics_.clear();
     rssi_timer_active_ = false;
     ++rssi_generation_;
+
+    bool intentional = is_disconnecting_on_purpose_;
+    is_disconnecting_on_purpose_ = false;
+    if (on_disconnected_) on_disconnected_(intentional);
   }
 
 private:
@@ -343,6 +347,7 @@ private:
   OnAdvertisementCallback on_advertisement_data_;
   ndx::OnConnectedCallback on_connected_;
   ndx::OnDisconnectedCallback on_disconnected_;
+  bool is_disconnecting_on_purpose_ = false;
   int rssi_ = 0;
   bool rssi_timer_active_ = false;
   uint64_t rssi_generation_ = 0;
