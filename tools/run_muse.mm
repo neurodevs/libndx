@@ -11,8 +11,16 @@ static void on_connected(const char* uuid, const char* name) {
   printf("Connected to peripheral: %s (%s)\n", name ? name : "", uuid ? uuid : "");
 }
 
-static void on_connection_status(const char* status) {
-  printf("Connection status: %s\n", status);
+static void on_lost() {
+  printf("Lost connection to peripheral. Reconnecting...\n");
+}
+
+static void on_reconnect() {
+  printf("Reconnected to peripheral\n");
+}
+
+static void on_disconnected() {
+  printf("Disconnected from peripheral\n");
 }
 
 static void on_rssi(int rssi) {
@@ -50,7 +58,7 @@ int main() {
   };
 
   free(create_ble_gatt_backend("{\"uuid\":\"CA6A61B7-B7A8-AF24-3C9E-04A6A5012554\"}"));
-  free(start_ble_gatt_backend(MUSE_DEVICE_UUID, on_connected, on_connection_status, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
+  free(start_ble_gatt_backend(MUSE_DEVICE_UUID, on_connected, on_lost, on_reconnect, on_disconnected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
   free(start_ble_gatt_rssi_polling(MUSE_DEVICE_UUID, 1000, on_rssi));
 
   after(5.0, ^{ write_start_commands(); });

@@ -4,6 +4,8 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 #include <nlohmann/json.hpp>
 
@@ -16,6 +18,9 @@
 #include "ndx/usb_provider.hpp"
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleGattBackend>> g_ble_gatt_backends;
+
+static std::mutex g_stopped_ble_gatt_backends_mutex;
+static std::unordered_map<ndx::BleGattBackend*, std::shared_ptr<ndx::BleGattBackend>> g_stopped_ble_gatt_backends;
 static std::unordered_map<std::string, std::shared_ptr<ndx::BleObserverBackend>> g_ble_observer_backends;
 static std::unordered_map<std::string, std::unique_ptr<ndx::BleProvider>> g_ble_scanners;
 
@@ -39,6 +44,18 @@ static BleObserverFactory g_ble_observer_factory = [](const std::string& device_
 static BleProviderFactory g_ble_provider_factory = []() {
     return ndx::create_ble_provider();
 };
+
+static void release_stopped_ble_gatt_backend(ndx::BleGattBackend* backend) {
+    std::shared_ptr<ndx::BleGattBackend> released;
+    {
+        std::lock_guard<std::mutex> lock(g_stopped_ble_gatt_backends_mutex);
+        auto it = g_stopped_ble_gatt_backends.find(backend);
+        if (it == g_stopped_ble_gatt_backends.end()) return;
+        released = std::move(it->second);
+        g_stopped_ble_gatt_backends.erase(it);
+    }
+    std::thread([released = std::move(released)]() mutable { released.reset(); }).detach();
+}
 
 std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& device_uuid) {
     auto it = g_ble_gatt_backends.find(device_uuid);
@@ -160,7 +177,7 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
     });
 }
 
-extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_connection_status_fn on_connection_status, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_lost_fn on_lost, on_reconnect_fn on_reconnect, on_disconnected_fn on_disconnected, const CharCallback* callbacks, size_t num_callbacks) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
@@ -176,12 +193,14 @@ extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn
                 on_connected(p ? p->id.c_str() : nullptr, p ? p->name.c_str() : nullptr);
               })
             : nullptr;
-        ndx::OnConnectionStatusCallback connection_status_cb = on_connection_status
-            ? ndx::OnConnectionStatusCallback([on_connection_status](ndx::ConnectionStatus status) {
-                on_connection_status(status == ndx::ConnectionStatus::lost ? "lost" : "reconnected");
-              })
-            : nullptr;
-        backend->start(std::move(cbs), std::move(connected_cb), std::move(connection_status_cb));
+        ndx::OnLostCallback lost_cb = on_lost ? ndx::OnLostCallback(on_lost) : nullptr;
+        ndx::OnReconnectCallback reconnect_cb = on_reconnect ? ndx::OnReconnectCallback(on_reconnect) : nullptr;
+        ndx::OnDisconnectedCallback disconnected_cb = [on_disconnected, released = backend.get()] {
+            if (on_disconnected) on_disconnected();
+            release_stopped_ble_gatt_backend(released);
+        };
+        backend->start(std::move(cbs), std::move(connected_cb), std::move(lost_cb), std::move(reconnect_cb),
+                       std::move(disconnected_cb));
         return to_ffi_result({{"status", 200}});
     });
 }
@@ -237,7 +256,12 @@ extern "C" char* stop_ble_gatt_rssi_polling(const char* device_uuid) {
 extern "C" char* stop_ble_gatt_backend(const char* device_uuid)  {
     return try_to_run([&] {
         auto result = stop_backend(device_uuid, get_ble_gatt_backend);
-        g_ble_gatt_backends.erase(device_uuid);
+        auto it = g_ble_gatt_backends.find(device_uuid);
+        if (it != g_ble_gatt_backends.end()) {
+            std::lock_guard<std::mutex> lock(g_stopped_ble_gatt_backends_mutex);
+            g_stopped_ble_gatt_backends[it->second.get()] = std::move(it->second);
+            g_ble_gatt_backends.erase(it);
+        }
         return result;
     });
 }
@@ -381,6 +405,10 @@ extern "C" char* stop_usb_backend(const char* serial_number) {
 
 void reset_ble_gatt_backends() {
     g_ble_gatt_backends.clear();
+    {
+        std::lock_guard<std::mutex> lock(g_stopped_ble_gatt_backends_mutex);
+        g_stopped_ble_gatt_backends.clear();
+    }
     g_ble_scanners.clear();
     g_ble_gatt_factory = [](const std::string& device_uuid) {
         return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());

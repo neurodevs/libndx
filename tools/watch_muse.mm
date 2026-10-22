@@ -40,14 +40,20 @@ static void on_connected(const char* uuid, const char* name) {
   });
 }
 
-static void on_connection_status(const char* status) {
-  if (strcmp(status, "lost") == 0) {
-    double since_packet = now_sec() - last_packet_sec.load();
-    printf("[%6.2fs] LOST connection, %.2fs after the last packet\n", elapsed(), since_packet);
-  } else {
-    printf("[%6.2fs] RECONNECTED\n", elapsed());
-    write_start_commands();
-  }
+static void on_lost() {
+  double since_packet = now_sec() - last_packet_sec.load();
+  printf("[%6.2fs] LOST connection, %.2fs after the last packet\n", elapsed(), since_packet);
+  fflush(stdout);
+}
+
+static void on_reconnect() {
+  printf("[%6.2fs] RECONNECTED\n", elapsed());
+  fflush(stdout);
+  write_start_commands();
+}
+
+static void on_disconnected() {
+  printf("[%6.2fs] DISCONNECTED\n", elapsed());
   fflush(stdout);
 }
 
@@ -105,7 +111,7 @@ int main() {
     if (!discovered_uuid) { printf("No Muse found. Is it on?\n"); exit(1); }
     std::string config = std::string("{\"uuid\":\"") + discovered_uuid + "\"}";
     free(create_ble_gatt_backend(config.c_str()));
-    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_connection_status, callbacks,
+    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_lost, on_reconnect, on_disconnected, callbacks,
                                 sizeof(callbacks) / sizeof(callbacks[0])));
   });
   after(RUN_SECONDS, ^{ free(stop_ble_gatt_backend(discovered_uuid)); exit(0); });

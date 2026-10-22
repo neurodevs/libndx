@@ -1,6 +1,9 @@
 #include <catch2/catch_all.hpp>
 #include <nlohmann/json.hpp>
+#include <chrono>
 #include <functional>
+#include <mutex>
+#include <thread>
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
@@ -11,15 +14,21 @@
 struct AlwaysOnBleProvider : ndx::BleProvider {
   std::unordered_map<std::string, std::function<void(const ndx::Packet&)>> callbacks;
   ndx::OnConnectedCallback on_connected;
-  ndx::OnDisconnectedCallback on_disconnected;
+  ndx::OnPeripheralDisconnectedCallback on_disconnected;
   bool is_powered_on() override { return true; }
   void scan_for_peripheral(const std::string&, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback connected,
-                           ndx::OnDisconnectedCallback disconnected) override {
+                           ndx::OnPeripheralDisconnectedCallback disconnected) override {
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
     on_connected = std::move(connected);
     on_disconnected = std::move(disconnected);
   }
+  // Like the real provider, waits for any callback in progress before it is
+  // destroyed, since a confirmed disconnect releases its backend.
+  std::mutex callback_mutex;
+  ~AlwaysOnBleProvider() override { std::lock_guard<std::mutex> lock(callback_mutex); }
+
   void simulate_disconnected(bool intentional) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
     if (on_disconnected) on_disconnected(intentional);
   }
   void add_char_callbacks(ndx::CharCallbacks cbs) override {
@@ -96,6 +105,13 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
   }
 };
 
+static bool eventually(const std::function<bool()>& is_done) {
+  for (int checks = 0; checks < 100 && !is_done(); ++checks) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  return is_done();
+}
+
 struct BleFfiFixture {
   AlwaysOnBleProvider* provider = nullptr;
 
@@ -121,7 +137,7 @@ struct BleFfiFixture {
 
   nlohmann::json start() {
     static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
-    const char* result = start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
+    const char* result = start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, nullptr, nullptr, &cb, 1);
     return nlohmann::json::parse(result);
   }
 
@@ -152,7 +168,7 @@ struct BleFfiFixture {
     set_ble_gatt_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleGattBackend> {
       struct ThrowingBleGattBackend : ndx::BleGattBackend {
         using ndx::BleGattBackend::BleGattBackend;
-        void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnConnectionStatusCallback) override { throw std::runtime_error("internal server error"); }
+        void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnLostCallback, ndx::OnReconnectCallback, ndx::OnDisconnectedCallback) override { throw std::runtime_error("internal server error"); }
         void add_char_callbacks(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { return 0; }
@@ -244,7 +260,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes C callback whe
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, nullptr, nullptr, &cb, 1);
   provider->simulate_packet({{42, 43}, 1.0});
 
   REQUIRE(received_data == std::vector<uint8_t>{42, 43});
@@ -259,7 +275,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend preserves sub-millisec
   };
   static CharCallback cb{"test-char", nullptr, fn};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, nullptr, nullptr, &cb, 1);
   provider->simulate_packet({{}, 1750123456.7891234});
 
   REQUIRE(received_timestamp_sec == Catch::Approx(1750123456.7891234).epsilon(1e-9));
@@ -272,7 +288,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend routes multiple callba
     {"char-b", nullptr, [](const uint8_t*, size_t, double) { b_calls++; }},
   };
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, cbs, 2);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, nullptr, nullptr, cbs, 2);
   provider->simulate_packet(ndx::Packet{});
 
   REQUIRE(a_calls == 1);
@@ -288,7 +304,7 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected c
   };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), fn, nullptr, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), fn, nullptr, nullptr, nullptr, &cb, 1);
   ndx::Device peripheral{.id = "test-uuid", .name = "Muse-1234"};
   provider->simulate_connected(&peripheral);
 
@@ -296,27 +312,29 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected c
   REQUIRE(received_name == "Muse-1234");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports a lost connection and the reconnection") {
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports a lost connection and the reconnect") {
   static std::vector<std::string> received;
   received.clear();
-  static on_connection_status_fn fn = [](const char* status) { received.push_back(status); };
+  static on_lost_fn lost = [] { received.push_back("lost"); };
+  static on_reconnect_fn reconnect = [] { received.push_back("reconnect"); };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, fn, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, lost, reconnect, nullptr, &cb, 1);
   provider->simulate_connected();
   provider->simulate_disconnected(false);
   provider->simulate_connected();
 
-  REQUIRE(received == std::vector<std::string>{"lost", "reconnected"});
+  REQUIRE(received == std::vector<std::string>{"lost", "reconnect"});
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend does not report an intentional disconnect") {
   static std::vector<std::string> received;
   received.clear();
-  static on_connection_status_fn fn = [](const char* status) { received.push_back(status); };
+  static on_lost_fn lost = [] { received.push_back("lost"); };
+  static on_reconnect_fn reconnect = [] { received.push_back("reconnect"); };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
-  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, fn, &cb, 1);
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, lost, reconnect, nullptr, &cb, 1);
   provider->simulate_connected();
   provider->simulate_disconnected(true);
 
@@ -459,6 +477,39 @@ TEST_CASE_METHOD(BleFfiFixture, "stop_ble_gatt_backend returns 500 on unexpected
   auto json = stop();
   REQUIRE(json["status"] == 500);
   REQUIRE(json["error"].get<std::string>().find("internal server error") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_backend keeps the backend until its disconnect is confirmed") {
+  std::weak_ptr<ndx::BleGattBackend> backend = get_ble_gatt_backend(valid_uuid);
+  start();
+  stop();
+  REQUIRE_FALSE(backend.expired());
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports disconnected once stop is confirmed") {
+  static int num_disconnected = 0;
+  num_disconnected = 0;
+  static on_disconnected_fn disconnected = [] { num_disconnected++; };
+  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
+  std::weak_ptr<ndx::BleGattBackend> backend = get_ble_gatt_backend(valid_uuid);
+
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, nullptr, nullptr, disconnected, &cb, 1);
+  provider->simulate_connected();
+  stop();
+  REQUIRE_FALSE(backend.expired());
+  provider->simulate_disconnected(true);
+
+  REQUIRE(num_disconnected == 1);
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "stop_ble_gatt_backend releases the backend once its disconnect is confirmed") {
+  std::weak_ptr<ndx::BleGattBackend> backend = get_ble_gatt_backend(valid_uuid);
+  start();
+  stop();
+
+  provider->simulate_disconnected(true);
+
+  REQUIRE(eventually([&] { return backend.expired(); }));
 }
 
 TEST_CASE_METHOD(ValidBleFixture, "create_ble_gatt_backend runs again after stop_ble_gatt_backend") {

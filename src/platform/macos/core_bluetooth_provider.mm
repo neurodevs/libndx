@@ -148,7 +148,7 @@ public:
   }
 
   void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected,
-                           ndx::OnDisconnectedCallback on_disconnected) override {
+                           ndx::OnPeripheralDisconnectedCallback on_disconnected) override {
     NSString* uuid_ns = [NSString stringWithUTF8String:uuid.c_str()];
     __block auto cbs = std::move(callbacks);
     __block auto on_conn = std::move(on_connected);
@@ -321,13 +321,25 @@ public:
   }
 
   void disconnect_peripheral(const std::string& uuid) override {
-    if (!delegate_.peripheral) return;
-    if (![delegate_.peripheral.identifier.UUIDString isEqualToString:[NSString stringWithUTF8String:uuid.c_str()]]) return;
-    CBPeripheral* peripheral = delegate_.peripheral;
-    CBCentralManager* manager = manager_;
-    is_disconnecting_on_purpose_ = true;
+    NSString* uuid_ns = [NSString stringWithUTF8String:uuid.c_str()];
     dispatch_async(ble_queue_, ^{
-      [manager cancelPeripheralConnection:peripheral];
+      CBPeripheral* peripheral = delegate_.peripheral;
+      bool is_connected_or_connecting = [peripheral.identifier.UUIDString isEqualToString:uuid_ns] &&
+                                        peripheral.state != CBPeripheralStateDisconnected;
+      if (is_connected_or_connecting) {
+        is_disconnecting_on_purpose_ = true;
+        [manager_ cancelPeripheralConnection:peripheral];
+        return;
+      }
+
+      // Nothing to cancel, so the disconnect is confirmed right away, and the
+      // scan is stopped so this provider cannot connect once it is found.
+      if (peripheral_target_id_) {
+        [manager_ stopScan];
+        peripheral_target_id_ = nil;
+      }
+      delegate_.peripheral = nil;
+      if (on_disconnected_) on_disconnected_(true);
     });
   }
 
@@ -368,7 +380,7 @@ private:
   std::unordered_map<std::string, std::function<void(const Packet&)>> char_callbacks_;
   OnAdvertisementCallback on_advertisement_data_;
   ndx::OnConnectedCallback on_connected_;
-  ndx::OnDisconnectedCallback on_disconnected_;
+  ndx::OnPeripheralDisconnectedCallback on_disconnected_;
   bool is_disconnecting_on_purpose_ = false;
   NSUInteger num_services_to_discover_ = 0;
   int rssi_ = 0;

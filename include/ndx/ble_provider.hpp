@@ -10,6 +10,8 @@ namespace ndx {
 
 class BleProvider {
 public:
+  // Must wait for any callback in progress, since a confirmed disconnect
+  // releases the backend that owns this provider.
   virtual ~BleProvider() = default;
   virtual bool is_powered_on() = 0;
   virtual void discover_ble_uuid(const std::string& name_prefix, std::function<void(const std::string& uuid)> on_discovered) = 0;
@@ -17,7 +19,7 @@ public:
                               std::function<void(const std::string& uuid, const std::string& name)> on_scanned) = 0;
   virtual void stop_ble_scan() = 0;
   virtual void scan_for_peripheral(const std::string& uuid, CharCallbacks callbacks, ndx::OnConnectedCallback on_connected,
-                                   ndx::OnDisconnectedCallback on_disconnected = nullptr) = 0;
+                                   ndx::OnPeripheralDisconnectedCallback on_disconnected = nullptr) = 0;
   virtual void start_advertisement_listen(const std::string& uuid, ndx::OnAdvertisementCallback on_advertisement) = 0;
   virtual void stop_advertisement_listen() = 0;
   virtual void add_char_callbacks(CharCallbacks callbacks) = 0;

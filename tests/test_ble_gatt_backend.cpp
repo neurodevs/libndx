@@ -36,10 +36,10 @@ struct FakeBleProvider : ndx::BleProvider {
   }
 
   ndx::OnConnectedCallback on_connected;
-  ndx::OnDisconnectedCallback on_disconnected;
+  ndx::OnPeripheralDisconnectedCallback on_disconnected;
 
   void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback on_connected_cb,
-                           ndx::OnDisconnectedCallback on_disconnected_cb) override {
+                           ndx::OnPeripheralDisconnectedCallback on_disconnected_cb) override {
     scan_requested_for = uuid;
     on_connected = std::move(on_connected_cb);
     on_disconnected = std::move(on_disconnected_cb);
@@ -110,11 +110,12 @@ struct BleGattBackendFixture {
   }
 
   int num_connects = 0;
-  std::vector<ndx::ConnectionStatus> statuses;
+  std::vector<std::string> events;
 
   void start_reporting_connections() {
     backend.start({}, [&](const ndx::Device*) { num_connects++; },
-                  [&](ndx::ConnectionStatus status) { statuses.push_back(status); });
+                  [&] { events.push_back("lost"); }, [&] { events.push_back("reconnect"); },
+                  [&] { events.push_back("disconnected"); });
     provider->simulate_connected();
   }
 
@@ -190,7 +191,7 @@ TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start scans for peripher
 TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports a lost connection and stays running") {
   start_reporting_connections();
   provider->simulate_unexpected_disconnect();
-  REQUIRE(statuses == std::vector<ndx::ConnectionStatus>{ndx::ConnectionStatus::lost});
+  REQUIRE(events == std::vector<std::string>{"lost"});
   REQUIRE(backend.is_running());
 }
 
@@ -200,12 +201,11 @@ TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reconnects once the conn
   REQUIRE(provider->reconnect_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports reconnected instead of connected once it reconnects") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports reconnect instead of connected once it reconnects") {
   start_reporting_connections();
   provider->simulate_unexpected_disconnect();
   provider->simulate_connected();
-  REQUIRE(statuses == std::vector<ndx::ConnectionStatus>{ndx::ConnectionStatus::lost,
-                                                          ndx::ConnectionStatus::reconnected});
+  REQUIRE(events == std::vector<std::string>{"lost", "reconnect"});
   REQUIRE(num_connects == 1);
 }
 
@@ -219,18 +219,25 @@ TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend polls rssi again once it
   REQUIRE(provider->num_rssi_intervals_set == 2);
 }
 
-TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend neither reports nor reconnects after an intentional disconnect") {
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports disconnected once an intentional disconnect is confirmed") {
   start_reporting_connections();
+  stop();
   provider->simulate_intentional_disconnect();
-  REQUIRE(statuses.empty());
+  REQUIRE(events == std::vector<std::string>{"disconnected"});
   REQUIRE(provider->reconnect_requested_for.empty());
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend does not report disconnected before the disconnect is confirmed") {
+  start_reporting_connections();
+  stop();
+  REQUIRE(events.empty());
 }
 
 TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend neither reports nor reconnects once stopped") {
   start_reporting_connections();
   stop();
   provider->simulate_unexpected_disconnect();
-  REQUIRE(statuses.empty());
+  REQUIRE(events.empty());
   REQUIRE(provider->reconnect_requested_for.empty());
 }
 

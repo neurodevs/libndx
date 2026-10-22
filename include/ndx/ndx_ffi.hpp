@@ -14,7 +14,9 @@
 extern "C" {
 
 typedef void (*on_connected_fn)(const char* uuid, const char* name);
-typedef void (*on_connection_status_fn)(const char* status);
+typedef void (*on_lost_fn)(void);
+typedef void (*on_reconnect_fn)(void);
+typedef void (*on_disconnected_fn)(void);
 typedef void (*on_data_fn)(const uint8_t* data, size_t len, double timestamp_sec);
 typedef void (*on_rssi_fn)(int rssi);
 typedef void (*on_discovered_fn)(const char* uuid);
@@ -33,7 +35,7 @@ char* start_ble_scan(const char* name_prefix, on_scanned_fn on_scanned);
 char* stop_ble_scan(const char* name_prefix);
 
 char* create_ble_gatt_backend(const char* config_json);
-char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_connection_status_fn on_connection_status, const CharCallback* callbacks, size_t num_callbacks);
+char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_lost_fn on_lost, on_reconnect_fn on_reconnect, on_disconnected_fn on_disconnected, const CharCallback* callbacks, size_t num_callbacks);
 char* register_ble_gatt_char_callbacks(const char* device_uuid, const CharCallback* callbacks, size_t num_callbacks);
 char* write_ble_gatt_char(const char* device_uuid, const char* char_uuid, const char* value);
 char* start_ble_gatt_rssi_polling(const char* device_uuid, int interval_ms, on_rssi_fn on_rssi);

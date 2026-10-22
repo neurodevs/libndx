@@ -28,7 +28,7 @@ struct FakeObserverProvider : ndx::BleProvider {
   }
 
   void scan_for_peripheral(const std::string&, ndx::CharCallbacks, ndx::OnConnectedCallback,
-                           ndx::OnDisconnectedCallback) override {}
+                           ndx::OnPeripheralDisconnectedCallback) override {}
   void add_char_callbacks(ndx::CharCallbacks) override {}
   void discover_ble_uuid(const std::string&, std::function<void(const std::string&)>) override {}
   int read_rssi() override { return 0; }
