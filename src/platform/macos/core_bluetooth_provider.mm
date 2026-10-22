@@ -250,20 +250,26 @@ public:
   void onConnectedPeripheral(CBPeripheral* peripheral) {
     peripheral.delegate = delegate_;
     [peripheral discoverServices:nil];
-    if (on_connected_) {
-      Device p{
-        .id = peripheral.identifier.UUIDString.UTF8String,
-        .name = peripheral.name ? peripheral.name.UTF8String : ""
-      };
-      on_connected_(&p);
-      on_connected_ = nullptr;
-    }
   }
 
   void onDiscoveredServices(CBPeripheral* peripheral) {
+    num_services_to_discover_ = peripheral.services.count;
+    if (num_services_to_discover_ == 0) reportConnected(peripheral);
+
     for (CBService* service in peripheral.services) {
       [peripheral discoverCharacteristics:nil forService:service];
     }
+  }
+
+  // Reports each connection, including each reconnection, only once every
+  // characteristic is discovered, so writes made right away are not dropped.
+  void reportConnected(CBPeripheral* peripheral) {
+    if (!on_connected_) return;
+    Device p{
+      .id = peripheral.identifier.UUIDString.UTF8String,
+      .name = peripheral.name ? peripheral.name.UTF8String : ""
+    };
+    on_connected_(&p);
   }
 
   void onDiscoveredCharacteristics(CBPeripheral* peripheral, CBService* service) {
@@ -274,6 +280,7 @@ public:
         [peripheral setNotifyValue:YES forCharacteristic:characteristic];
       }
     }
+    if (num_services_to_discover_ > 0 && --num_services_to_discover_ == 0) reportConnected(peripheral);
   }
 
   void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
@@ -302,6 +309,17 @@ public:
     it->second(packet);
   }
 
+  // CoreBluetooth keeps the connection pending, with no timeout, until the
+  // peripheral comes back in range or the connection is cancelled.
+  void reconnect_peripheral(const std::string& uuid) override {
+    NSString* uuid_ns = [NSString stringWithUTF8String:uuid.c_str()];
+    dispatch_async(ble_queue_, ^{
+      CBPeripheral* peripheral = delegate_.peripheral;
+      if (![peripheral.identifier.UUIDString isEqualToString:uuid_ns]) return;
+      [manager_ connectPeripheral:peripheral options:nil];
+    });
+  }
+
   void disconnect_peripheral(const std::string& uuid) override {
     if (!delegate_.peripheral) return;
     if (![delegate_.peripheral.identifier.UUIDString isEqualToString:[NSString stringWithUTF8String:uuid.c_str()]]) return;
@@ -316,13 +334,17 @@ public:
   void onDisconnectedPeripheral(CBPeripheral* peripheral) {
     if (delegate_.peripheral != peripheral) return;
 
-    delegate_.peripheral = nil;
+    bool intentional = is_disconnecting_on_purpose_;
+    is_disconnecting_on_purpose_ = false;
+
+    // Keeps the peripheral after an unexpected disconnect, so it can be
+    // reconnected, and its pending connection cancelled on stop.
+    if (intentional) delegate_.peripheral = nil;
     characteristics_.clear();
+    num_services_to_discover_ = 0;
     rssi_timer_active_ = false;
     ++rssi_generation_;
 
-    bool intentional = is_disconnecting_on_purpose_;
-    is_disconnecting_on_purpose_ = false;
     if (on_disconnected_) on_disconnected_(intentional);
   }
 
@@ -348,6 +370,7 @@ private:
   ndx::OnConnectedCallback on_connected_;
   ndx::OnDisconnectedCallback on_disconnected_;
   bool is_disconnecting_on_purpose_ = false;
+  NSUInteger num_services_to_discover_ = 0;
   int rssi_ = 0;
   bool rssi_timer_active_ = false;
   uint64_t rssi_generation_ = 0;

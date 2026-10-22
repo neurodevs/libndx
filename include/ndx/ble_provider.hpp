@@ -25,6 +25,7 @@ public:
   virtual void set_rssi_interval(int interval_ms, std::function<void(int)> on_rssi) = 0;
   virtual void stop_rssi_interval() = 0;
   virtual void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) = 0;
+  virtual void reconnect_peripheral(const std::string& uuid) = 0;
   virtual void disconnect_peripheral(const std::string& uuid) = 0;
 };
 

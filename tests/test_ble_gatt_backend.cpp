@@ -20,26 +20,43 @@ struct FakeBleProvider : ndx::BleProvider {
   
   int read_rssi() override { return 0; }
 
-  void set_rssi_interval(int, std::function<void(int)>) override {}
+  int rssi_interval_ms = 0;
+  int num_rssi_intervals_set = 0;
 
-  void stop_rssi_interval() override {}
+  void set_rssi_interval(int interval_ms, std::function<void(int)>) override {
+    rssi_interval_ms = interval_ms;
+    num_rssi_intervals_set++;
+  }
+
+  void stop_rssi_interval() override { rssi_interval_ms = 0; }
 
   void write_characteristic(const std::string& char_uuid, const uint8_t* data, size_t len) override {
     last_write_char_uuid = char_uuid;
     last_write_data.assign(data, data + len);
   }
 
+  ndx::OnConnectedCallback on_connected;
   ndx::OnDisconnectedCallback on_disconnected;
 
-  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback,
+  void scan_for_peripheral(const std::string& uuid, ndx::CharCallbacks cbs,  ndx::OnConnectedCallback on_connected_cb,
                            ndx::OnDisconnectedCallback on_disconnected_cb) override {
     scan_requested_for = uuid;
+    on_connected = std::move(on_connected_cb);
     on_disconnected = std::move(on_disconnected_cb);
     for (auto& e : cbs) callbacks[e.char_uuid] = std::move(e.on_data);
   }
 
+  void simulate_connected() {
+    ndx::Device device{.id = "A1:B2:C3:D4:E5:F6", .name = "Muse-1234"};
+    if (on_connected) on_connected(&device);
+  }
+
   void simulate_unexpected_disconnect() {
     if (on_disconnected) on_disconnected(false);
+  }
+
+  void simulate_intentional_disconnect() {
+    if (on_disconnected) on_disconnected(true);
   }
 
   bool add_char_callbacks_called = false;
@@ -55,6 +72,12 @@ struct FakeBleProvider : ndx::BleProvider {
   void stop_advertisement_listen() override {}
 
   
+  std::string reconnect_requested_for;
+
+  void reconnect_peripheral(const std::string& uuid) override {
+    reconnect_requested_for = uuid;
+  }
+
   void disconnect_peripheral(const std::string& uuid) override {
     disconnect_requested_for = uuid;
   }
@@ -84,6 +107,15 @@ struct BleGattBackendFixture {
 
   void stop() {
     backend.stop();
+  }
+
+  int num_connects = 0;
+  std::vector<ndx::ConnectionStatus> statuses;
+
+  void start_reporting_connections() {
+    backend.start({}, [&](const ndx::Device*) { num_connects++; },
+                  [&](ndx::ConnectionStatus status) { statuses.push_back(status); });
+    provider->simulate_connected();
   }
 
 };
@@ -155,17 +187,51 @@ TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend start scans for peripher
   REQUIRE(provider->scan_requested_for == "A1:B2:C3:D4:E5:F6");
 }
 
-TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports an unexpected disconnect and stays running") {
-  int disconnects = 0;
-  bool reported_intentional = true;
-  backend.start({}, nullptr, [&](bool intentional) {
-    disconnects++;
-    reported_intentional = intentional;
-  });
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports a lost connection and stays running") {
+  start_reporting_connections();
   provider->simulate_unexpected_disconnect();
-  REQUIRE(disconnects == 1);
-  REQUIRE_FALSE(reported_intentional);
+  REQUIRE(statuses == std::vector<ndx::ConnectionStatus>{ndx::ConnectionStatus::lost});
   REQUIRE(backend.is_running());
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reconnects once the connection is lost") {
+  start_reporting_connections();
+  provider->simulate_unexpected_disconnect();
+  REQUIRE(provider->reconnect_requested_for == "A1:B2:C3:D4:E5:F6");
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend reports reconnected instead of connected once it reconnects") {
+  start_reporting_connections();
+  provider->simulate_unexpected_disconnect();
+  provider->simulate_connected();
+  REQUIRE(statuses == std::vector<ndx::ConnectionStatus>{ndx::ConnectionStatus::lost,
+                                                          ndx::ConnectionStatus::reconnected});
+  REQUIRE(num_connects == 1);
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend polls rssi again once it reconnects") {
+  start_reporting_connections();
+  backend.set_rssi_interval(5000, [](int) {});
+  provider->simulate_unexpected_disconnect();
+  provider->stop_rssi_interval();
+  provider->simulate_connected();
+  REQUIRE(provider->rssi_interval_ms == 5000);
+  REQUIRE(provider->num_rssi_intervals_set == 2);
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend neither reports nor reconnects after an intentional disconnect") {
+  start_reporting_connections();
+  provider->simulate_intentional_disconnect();
+  REQUIRE(statuses.empty());
+  REQUIRE(provider->reconnect_requested_for.empty());
+}
+
+TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend neither reports nor reconnects once stopped") {
+  start_reporting_connections();
+  stop();
+  provider->simulate_unexpected_disconnect();
+  REQUIRE(statuses.empty());
+  REQUIRE(provider->reconnect_requested_for.empty());
 }
 
 TEST_CASE_METHOD(BleGattBackendFixture, "BleGattBackend sets is_intentional_disconnect false") {

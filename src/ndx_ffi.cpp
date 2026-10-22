@@ -160,7 +160,7 @@ extern "C" char* create_ble_gatt_backend(const char* config_json) {
     });
 }
 
-extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_disconnected_fn on_disconnected, const CharCallback* callbacks, size_t num_callbacks) {
+extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn on_connected, on_connection_status_fn on_connection_status, const CharCallback* callbacks, size_t num_callbacks) {
     return try_to_run([&] {
         auto backend = get_ble_gatt_backend(device_uuid);
         if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
@@ -176,12 +176,12 @@ extern "C" char* start_ble_gatt_backend(const char* device_uuid, on_connected_fn
                 on_connected(p ? p->id.c_str() : nullptr, p ? p->name.c_str() : nullptr);
               })
             : nullptr;
-        ndx::OnDisconnectedCallback disconnected_cb = on_disconnected
-            ? ndx::OnDisconnectedCallback([on_disconnected](bool intentional) {
-                on_disconnected(intentional ? 1 : 0);
+        ndx::OnConnectionStatusCallback connection_status_cb = on_connection_status
+            ? ndx::OnConnectionStatusCallback([on_connection_status](ndx::ConnectionStatus status) {
+                on_connection_status(status == ndx::ConnectionStatus::lost ? "lost" : "reconnected");
               })
             : nullptr;
-        backend->start(std::move(cbs), std::move(connected_cb), std::move(disconnected_cb));
+        backend->start(std::move(cbs), std::move(connected_cb), std::move(connection_status_cb));
         return to_ffi_result({{"status", 200}});
     });
 }

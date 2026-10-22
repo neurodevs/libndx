@@ -21,6 +21,9 @@ using OnConnectedCallback = std::function<void(const Device*)>;
 using OnDataCallback = std::function<void(const Packet&)>;
 using OnDisconnectedCallback = std::function<void(bool intentional)>;
 
+enum class ConnectionStatus { lost, reconnected };
+using OnConnectionStatusCallback = std::function<void(ConnectionStatus)>;
+
 
 class AcquisitionBackend {
 public:

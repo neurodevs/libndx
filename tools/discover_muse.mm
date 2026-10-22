@@ -11,8 +11,8 @@ static void on_connected(const char* uuid, const char* name) {
   printf("Connected to peripheral: %s (%s)\n", name ? name : "", uuid ? uuid : "");
 }
 
-static void on_disconnected(int intentional) {
-  printf("Disconnected from peripheral (%s)\n", intentional ? "intentional" : "unexpected");
+static void on_connection_status(const char* status) {
+  printf("Connection status: %s\n", status);
 }
 
 static void on_rssi(int rssi) {
@@ -59,7 +59,7 @@ int main() {
     if (!discovered_uuid) { printf("Discovery did not complete in time\n"); exit(1); }
     std::string config = std::string("{\"uuid\":\"") + discovered_uuid + "\"}";
     free(create_ble_gatt_backend(config.c_str()));
-    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_disconnected, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
+    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_connection_status, callbacks, sizeof(callbacks) / sizeof(callbacks[0])));
     free(start_ble_gatt_rssi_polling(discovered_uuid, 1000, on_rssi));
   });
   after(7.0, ^{ write_start_commands(); });

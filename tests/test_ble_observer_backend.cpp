@@ -35,6 +35,7 @@ struct FakeObserverProvider : ndx::BleProvider {
   void set_rssi_interval(int, std::function<void(int)>) override {}
   void stop_rssi_interval() override {}
   void write_characteristic(const std::string&, const uint8_t*, size_t) override {}
+  void reconnect_peripheral(const std::string&) override {}
   void disconnect_peripheral(const std::string&) override {}
 };
 

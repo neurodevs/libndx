@@ -7,8 +7,9 @@
 #include <string>
 
 // Streams from the first Muse found and reports, once per second, how many
-// packets arrived. Turn the headband off to see how soon the disconnect is
-// reported, and how long after the last packet.
+// packets arrived. Turn the headband off to see how soon the lost connection
+// is reported, and how long after the last packet. Turn it back on to see it
+// reconnect and resume streaming.
 
 static const char* CONTROL_CHAR_UUID = "273E0001-4C4D-454D-96BE-F03BAC821358";
 static const double RUN_SECONDS = 90.0;
@@ -39,10 +40,14 @@ static void on_connected(const char* uuid, const char* name) {
   });
 }
 
-static void on_disconnected(int intentional) {
-  double since_packet = now_sec() - last_packet_sec.load();
-  printf("[%6.2fs] DISCONNECTED (%s), %.2fs after the last packet\n", elapsed(),
-         intentional ? "intentional" : "unexpected", since_packet);
+static void on_connection_status(const char* status) {
+  if (strcmp(status, "lost") == 0) {
+    double since_packet = now_sec() - last_packet_sec.load();
+    printf("[%6.2fs] LOST connection, %.2fs after the last packet\n", elapsed(), since_packet);
+  } else {
+    printf("[%6.2fs] RECONNECTED\n", elapsed());
+    write_start_commands();
+  }
   fflush(stdout);
 }
 
@@ -100,7 +105,7 @@ int main() {
     if (!discovered_uuid) { printf("No Muse found. Is it on?\n"); exit(1); }
     std::string config = std::string("{\"uuid\":\"") + discovered_uuid + "\"}";
     free(create_ble_gatt_backend(config.c_str()));
-    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_disconnected, callbacks,
+    free(start_ble_gatt_backend(discovered_uuid, on_connected, on_connection_status, callbacks,
                                 sizeof(callbacks) / sizeof(callbacks[0])));
   });
   after(RUN_SECONDS, ^{ free(stop_ble_gatt_backend(discovered_uuid)); exit(0); });

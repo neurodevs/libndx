@@ -85,6 +85,11 @@ struct AlwaysOnBleProvider : ndx::BleProvider {
     last_write_data.assign(data, data + len);
   }
 
+  std::string reconnect_requested_for;
+  void reconnect_peripheral(const std::string& uuid) override {
+    reconnect_requested_for = uuid;
+  }
+
   std::string disconnect_requested_for;
   void disconnect_peripheral(const std::string& uuid) override {
     disconnect_requested_for = uuid;
@@ -147,7 +152,7 @@ struct BleFfiFixture {
     set_ble_gatt_factory([](const std::string& uuid) -> std::shared_ptr<ndx::BleGattBackend> {
       struct ThrowingBleGattBackend : ndx::BleGattBackend {
         using ndx::BleGattBackend::BleGattBackend;
-        void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnDisconnectedCallback) override { throw std::runtime_error("internal server error"); }
+        void start(ndx::CharCallbacks, ndx::OnConnectedCallback, ndx::OnConnectionStatusCallback) override { throw std::runtime_error("internal server error"); }
         void add_char_callbacks(ndx::CharCallbacks) override { throw std::runtime_error("internal server error"); }
         void stop() override { throw std::runtime_error("internal server error"); }
         int read_rssi() override { return 0; }
@@ -291,17 +296,31 @@ TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend invokes on_connected c
   REQUIRE(received_name == "Muse-1234");
 }
 
-TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports each disconnect and whether it was intentional") {
-  static std::vector<int> received;
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend reports a lost connection and the reconnection") {
+  static std::vector<std::string> received;
   received.clear();
-  static on_disconnected_fn fn = [](int intentional) { received.push_back(intentional); };
+  static on_connection_status_fn fn = [](const char* status) { received.push_back(status); };
   static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
 
   start_ble_gatt_backend(valid_uuid.c_str(), nullptr, fn, &cb, 1);
+  provider->simulate_connected();
   provider->simulate_disconnected(false);
+  provider->simulate_connected();
+
+  REQUIRE(received == std::vector<std::string>{"lost", "reconnected"});
+}
+
+TEST_CASE_METHOD(ValidBleFixture, "start_ble_gatt_backend does not report an intentional disconnect") {
+  static std::vector<std::string> received;
+  received.clear();
+  static on_connection_status_fn fn = [](const char* status) { received.push_back(status); };
+  static CharCallback cb{"test-char", nullptr, [](const uint8_t*, size_t, double) {}};
+
+  start_ble_gatt_backend(valid_uuid.c_str(), nullptr, fn, &cb, 1);
+  provider->simulate_connected();
   provider->simulate_disconnected(true);
 
-  REQUIRE(received == std::vector<int>{0, 1});
+  REQUIRE(received.empty());
 }
 
 TEST_CASE_METHOD(BleFfiFixture, "start_ble_gatt_backend returns 500 on unexpected throw") {
