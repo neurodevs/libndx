@@ -9,9 +9,9 @@
 
 namespace ndx {
 
-class BluetoothProvider {
+class RfcommProvider {
 public:
-  virtual ~BluetoothProvider() = default;
+  virtual ~RfcommProvider() = default;
   virtual bool is_powered_on() = 0;
   virtual void connect(const std::string& address, int port,
                        OnDataCallback on_data,
@@ -20,16 +20,16 @@ public:
   virtual bool write(const uint8_t* data, size_t len) = 0;
 };
 
-std::unique_ptr<BluetoothProvider> create_bluetooth_provider();
+std::unique_ptr<RfcommProvider> create_rfcomm_provider();
 
-std::vector<std::string> list_bluetooth_addresses(const std::string& name_prefix);
+std::vector<std::string> list_rfcomm_addresses(const std::string& name_prefix);
 
 // IOBluetooth delivers incoming RFCOMM data on the main thread's run loop only,
 // which hosts like node never run. They must call this often from the main
 // thread to receive any data.
-void pump_bluetooth_events();
+void pump_rfcomm_events();
 
-class BluetoothProviderSyscalls {
+class RfcommProviderSyscalls {
 public:
   static std::function<std::vector<Device>()> list_paired_devices;
 };

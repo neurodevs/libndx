@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-#include "ndx/bluetooth_provider.hpp"
+#include "ndx/rfcomm_provider.hpp"
 
 @interface NdxRfcommDelegate : NSObject <IOBluetoothRFCOMMChannelDelegate>
 - (instancetype)initWithOnData:(ndx::OnDataCallback)on_data;
@@ -44,7 +44,7 @@
 
 namespace ndx {
 
-std::function<std::vector<Device>()> BluetoothProviderSyscalls::list_paired_devices = []() {
+std::function<std::vector<Device>()> RfcommProviderSyscalls::list_paired_devices = []() {
   std::vector<Device> devices;
 
   @autoreleasepool {
@@ -66,10 +66,10 @@ std::string describe_io_return(IOReturn result) {
 
 // Each provider opens its channel and writes on a thread of its own, whose run
 // loop keeps spinning until disconnect. Incoming data, however, always arrives
-// on the main run loop: see pump_bluetooth_events.
-class IOBluetoothProvider : public BluetoothProvider {
+// on the main run loop: see pump_rfcomm_events.
+class IOBluetoothRfcommProvider : public RfcommProvider {
 public:
-  ~IOBluetoothProvider() override { disconnect(); }
+  ~IOBluetoothRfcommProvider() override { disconnect(); }
 
   bool is_powered_on() override {
     return [IOBluetoothHostController defaultController].powerState == kBluetoothHCIPowerStateON;
@@ -107,7 +107,7 @@ public:
 
     if (!error.empty()) {
       disconnect();
-      throw std::runtime_error("BluetoothProvider: " + error);
+      throw std::runtime_error("RfcommProvider: " + error);
     }
 
     if (on_connected) {
@@ -206,15 +206,15 @@ private:
 
 }
 
-void pump_bluetooth_events() {
+void pump_rfcomm_events() {
   @autoreleasepool {
     while (CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunHandledSource) {
     }
   }
 }
 
-std::unique_ptr<BluetoothProvider> create_bluetooth_provider() {
-  return std::make_unique<IOBluetoothProvider>();
+std::unique_ptr<RfcommProvider> create_rfcomm_provider() {
+  return std::make_unique<IOBluetoothRfcommProvider>();
 }
 
 }

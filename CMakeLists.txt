@@ -12,8 +12,8 @@ set(NDX_SOURCES
   src/ble/ble_gatt_backend.cpp
   src/ble/ble_observer_backend.cpp
   src/ble/ble_types.cpp
-  src/bluetooth/bluetooth_backend.cpp
-  src/bluetooth/bluetooth_provider.cpp
+  src/rfcomm/rfcomm_backend.cpp
+  src/rfcomm/rfcomm_provider.cpp
   src/usb/usb_backend.cpp
   src/usb/usb_provider.cpp
 )
@@ -74,8 +74,8 @@ add_executable(ndx_tests
   tests/test_ble_gatt_backend.cpp
   tests/test_ble_ffi.cpp
   tests/test_ble_provider.cpp
-  tests/test_bluetooth_backend.cpp
-  tests/test_bluetooth_ffi.cpp
+  tests/test_rfcomm_backend.cpp
+  tests/test_rfcomm_ffi.cpp
   tests/test_usb_backend.cpp
   tests/test_usb_ffi.cpp
   tests/test_usb_provider.cpp
