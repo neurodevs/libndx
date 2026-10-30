@@ -9,6 +9,7 @@
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_observer_backend.hpp"
 #include "ndx/ble_gatt_backend.hpp"
+#include "ndx/bluetooth_backend.hpp"
 #include "ndx/usb_backend.hpp"
 
 extern "C" {
@@ -53,23 +54,35 @@ char* start_usb_backend(const char* serial_number, void (*on_data)(const uint8_t
 char* write_usb_backend(const char* serial_number, const char* value);
 char* stop_usb_backend(const char* serial_number);
 
+char* discover_bluetooth_addresses(const char* name_prefix);
+
+char* create_bluetooth_backend(const char* config_json);
+char* start_bluetooth_backend(const char* address, on_data_fn on_data);
+char* write_bluetooth_backend(const char* address, const uint8_t* data, size_t len);
+char* stop_bluetooth_backend(const char* address);
+char* pump_bluetooth_events();
+
 }
 
 using BleGattFactory = std::function<std::shared_ptr<ndx::BleGattBackend>(const std::string&)>;
 using BleObserverFactory = std::function<std::shared_ptr<ndx::BleObserverBackend>(const std::string&)>;
 using BleProviderFactory = std::function<std::unique_ptr<ndx::BleProvider>()>;
 using UsbFactory = std::function<std::shared_ptr<ndx::UsbBackend>(const std::string&)>;
+using BluetoothFactory = std::function<std::shared_ptr<ndx::BluetoothBackend>(const std::string&, int)>;
 
 #ifdef NDX_TESTING
 std::shared_ptr<ndx::BleGattBackend> get_ble_gatt_backend(const std::string& device_uuid);
 std::shared_ptr<ndx::BleObserverBackend> get_ble_observer_backend(const std::string& device_uuid);
 std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_number);
+std::shared_ptr<ndx::BluetoothBackend> get_bluetooth_backend(const std::string& address);
 void reset_ble_gatt_backends();
 void reset_ble_observer_backends();
 void reset_ble_scans();
 void reset_usb_backends();
+void reset_bluetooth_backends();
 void set_ble_gatt_factory(BleGattFactory factory);
 void set_ble_observer_factory(BleObserverFactory factory);
 void set_ble_provider_factory(BleProviderFactory factory);
 void set_usb_factory(UsbFactory factory);
+void set_bluetooth_factory(BluetoothFactory factory);
 #endif

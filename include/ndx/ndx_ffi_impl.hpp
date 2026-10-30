@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -14,6 +15,19 @@ static bool is_valid_uuid(const std::string& uuid) {
 
 static bool is_valid_serial(const std::string& serial_number) {
     return serial_number.size() == 8;
+}
+
+static bool is_valid_bluetooth_address(const std::string& address) {
+    if (address.size() != 17) return false;
+    const char separator = address[2];
+    if (separator != '-' && separator != ':') return false;
+    for (size_t i = 0; i < address.size(); i++) {
+        const bool is_separator_position = i % 3 == 2;
+        if (is_separator_position ? address[i] != separator : !std::isxdigit(static_cast<unsigned char>(address[i]))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static char* to_ffi_result(const nlohmann::json& j) {

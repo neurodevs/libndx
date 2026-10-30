@@ -13,13 +13,19 @@ set(NDX_SOURCES
   src/ble/ble_observer_backend.cpp
   src/ble/ble_types.cpp
   src/bluetooth/bluetooth_backend.cpp
+  src/bluetooth/bluetooth_provider.cpp
   src/usb/usb_backend.cpp
   src/usb/usb_provider.cpp
 )
 
 if(APPLE)
-  list(APPEND NDX_SOURCES src/platform/macos/core_bluetooth_provider.mm)
-  set_source_files_properties(src/platform/macos/core_bluetooth_provider.mm
+  list(APPEND NDX_SOURCES
+    src/platform/macos/core_bluetooth_provider.mm
+    src/platform/macos/io_bluetooth_provider.mm
+  )
+  set_source_files_properties(
+    src/platform/macos/core_bluetooth_provider.mm
+    src/platform/macos/io_bluetooth_provider.mm
     PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 else()
   list(APPEND NDX_SOURCES src/ble/ble_provider.cpp)
@@ -47,6 +53,7 @@ if(APPLE)
   target_link_libraries(ndx PUBLIC
     "-framework CoreBluetooth"
     "-framework Foundation"
+    "-framework IOBluetooth"
   )
 else()
   message(FATAL_ERROR "libndx: unsupported platform: ${CMAKE_SYSTEM_NAME}")
@@ -68,6 +75,7 @@ add_executable(ndx_tests
   tests/test_ble_ffi.cpp
   tests/test_ble_provider.cpp
   tests/test_bluetooth_backend.cpp
+  tests/test_bluetooth_ffi.cpp
   tests/test_usb_backend.cpp
   tests/test_usb_ffi.cpp
   tests/test_usb_provider.cpp

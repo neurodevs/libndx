@@ -22,4 +22,8 @@ void BluetoothBackend::stop() {
   provider_->disconnect();
 }
 
+bool BluetoothBackend::write(const uint8_t* data, size_t len) {
+  return provider_->write(data, len);
+}
+
 }

@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <functional>
+#include <vector>
 #include "ndx/bluetooth_backend.hpp"
 
 struct FakeBluetoothProvider : ndx::BluetoothProvider {
@@ -20,6 +21,12 @@ struct FakeBluetoothProvider : ndx::BluetoothProvider {
   }
 
   void disconnect() override { disconnect_called = true; }
+
+  std::vector<uint8_t> written_data;
+  bool write(const uint8_t* data, size_t len) override {
+    written_data.assign(data, data + len);
+    return true;
+  }
 
   void simulate_packet(const ndx::Packet& p) {
     if (captured_on_data) captured_on_data(p);
@@ -87,4 +94,11 @@ TEST_CASE_METHOD(BluetoothBackendFixture, "BluetoothBackend invokes callback whe
   start([&](const ndx::Packet&) { called = true; });
   provider->simulate_packet(ndx::Packet{});
   REQUIRE(called);
+}
+
+TEST_CASE_METHOD(BluetoothBackendFixture, "BluetoothBackend write forwards bytes to provider") {
+  start();
+  const uint8_t bytes[] = {0x02, 0x23, 0x00, 0x00, 0x03};
+  REQUIRE(backend.write(bytes, sizeof(bytes)));
+  REQUIRE(provider->written_data == std::vector<uint8_t>{0x02, 0x23, 0x00, 0x00, 0x03});
 }

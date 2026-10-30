@@ -14,6 +14,8 @@
 #include "ndx/acquisition_backend.hpp"
 #include "ndx/ble_gatt_backend.hpp"
 #include "ndx/ble_provider.hpp"
+#include "ndx/bluetooth_backend.hpp"
+#include "ndx/bluetooth_provider.hpp"
 #include "ndx/usb_backend.hpp"
 #include "ndx/usb_provider.hpp"
 
@@ -32,6 +34,8 @@ struct BleScan {
 static std::unordered_map<std::string, BleScan> g_ble_scans;
 
 static std::unordered_map<std::string, std::shared_ptr<ndx::UsbBackend>> g_usb_backends;
+
+static std::unordered_map<std::string, std::shared_ptr<ndx::BluetoothBackend>> g_bluetooth_backends;
 
 static BleGattFactory g_ble_gatt_factory = [](const std::string& device_uuid) {
     return std::make_shared<ndx::BleGattBackend>(device_uuid, ndx::create_ble_provider());
@@ -86,6 +90,19 @@ std::shared_ptr<ndx::UsbBackend> get_usb_backend(const std::string& serial_numbe
 
 static bool is_usb_registered(const std::string& serial_number) {
     return g_usb_backends.count(serial_number) > 0;
+}
+
+static BluetoothFactory g_bluetooth_factory = [](const std::string& address, int port) {
+    return std::make_shared<ndx::BluetoothBackend>(address, port, ndx::create_bluetooth_provider());
+};
+
+std::shared_ptr<ndx::BluetoothBackend> get_bluetooth_backend(const std::string& address) {
+    auto it = g_bluetooth_backends.find(address);
+    return it != g_bluetooth_backends.end() ? it->second : nullptr;
+}
+
+static bool is_bluetooth_registered(const std::string& address) {
+    return g_bluetooth_backends.count(address) > 0;
 }
 
 extern "C" char* discover_ble_uuid(const char* name_prefix, on_discovered_fn on_discovered) {
@@ -401,6 +418,87 @@ extern "C" char* stop_usb_backend(const char* serial_number) {
     });
 }
 
+extern "C" char* discover_bluetooth_addresses(const char* name_prefix) {
+    return try_to_run([&] {
+        return to_ffi_result({{"status", 200}, {"addresses", ndx::list_bluetooth_addresses(name_prefix)}});
+    });
+}
+
+extern "C" char* create_bluetooth_backend(const char* config_json) {
+    return try_to_run([&] {
+        auto j = nlohmann::json::parse(config_json, nullptr, false);
+
+        if (j.is_discarded()) {
+            return to_ffi_result({{"status", 400}, {"error", "malformed JSON"}});
+        }
+
+        std::string address = j["address"].get<std::string>();
+
+        if (!is_valid_bluetooth_address(address)) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid address"}});
+        }
+
+        if (is_bluetooth_registered(address)) {
+            return to_ffi_result({{"status", 400}, {"error", "address already registered"}});
+        }
+
+        const auto port = j.value("port", nlohmann::json(1));
+
+        if (!port.is_number_integer() || port.get<long long>() < 1 || port.get<long long>() > 30) {
+            return to_ffi_result({{"status", 400}, {"error", "invalid port"}});
+        }
+
+        g_bluetooth_backends[address] = g_bluetooth_factory(address, port.get<int>());
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
+extern "C" char* start_bluetooth_backend(const char* address, on_data_fn on_data) {
+    return try_to_run([&] {
+        auto backend = get_bluetooth_backend(address);
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
+
+        if (backend->is_running()) {
+            return to_ffi_result({{"status", 400}, {"error", "bluetooth backend already running"}});
+        }
+
+        try {
+            backend->start([fn = on_data](const ndx::Packet& p) {
+                fn(p.data.data(), p.data.size(), p.timestamp_sec);
+            });
+        } catch (const std::exception& e) {
+            g_bluetooth_backends.erase(address);
+            return to_ffi_result({{"status", 500}, {"error", e.what()}});
+        }
+
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
+extern "C" char* write_bluetooth_backend(const char* address, const uint8_t* data, size_t len) {
+    return try_to_run([&] {
+        auto backend = get_bluetooth_backend(address);
+        if (!backend) return to_ffi_result(BACKEND_NOT_FOUND);
+        backend->write(data, len);
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
+extern "C" char* stop_bluetooth_backend(const char* address) {
+    return try_to_run([&] {
+        auto result = stop_backend(address, get_bluetooth_backend);
+        g_bluetooth_backends.erase(address);
+        return result;
+    });
+}
+
+extern "C" char* pump_bluetooth_events() {
+    return try_to_run([&] {
+        ndx::pump_bluetooth_events();
+        return to_ffi_result({{"status", 200}});
+    });
+}
+
 // For tests only
 
 void reset_ble_gatt_backends() {
@@ -435,6 +533,13 @@ void reset_usb_backends() {
     };
 }
 
+void reset_bluetooth_backends() {
+    g_bluetooth_backends.clear();
+    g_bluetooth_factory = [](const std::string& address, int port) {
+        return std::make_shared<ndx::BluetoothBackend>(address, port, ndx::create_bluetooth_provider());
+    };
+}
+
 void set_ble_gatt_factory(BleGattFactory factory) {
     g_ble_gatt_factory = factory;
 }
@@ -449,4 +554,8 @@ void set_ble_provider_factory(BleProviderFactory factory) {
 
 void set_usb_factory(UsbFactory factory) {
     g_usb_factory = factory;
+}
+
+void set_bluetooth_factory(BluetoothFactory factory) {
+    g_bluetooth_factory = factory;
 }
